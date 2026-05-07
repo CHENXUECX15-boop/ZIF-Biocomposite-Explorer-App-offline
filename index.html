@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Phase Ternary Stack</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">XRD phase map</p>
+        <h1>Phase Ternary Stack</h1>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="controls-panel" aria-label="Display controls">
+        <section class="control-section">
+          <h2>Dataset</h2>
+          <div class="dataset-tabs" aria-label="Dataset">
+            <button class="dataset-tab is-active" type="button" data-dataset="WW">WW</button>
+            <button class="dataset-tab" type="button" data-dataset="EW">EW</button>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <h2>Concentration</h2>
+          <div class="filter-group" id="concentrationFilters" aria-label="Concentration filter"></div>
+        </section>
+
+        <section class="control-section">
+          <h2>Phase</h2>
+          <div class="filter-group" id="phaseFilters" aria-label="Phase filter"></div>
+        </section>
+
+        <section class="control-section">
+          <h2>Navigation</h2>
+          <div class="mode-tabs" aria-label="Drag mode">
+            <button class="mode-tab is-active" type="button" data-drag-mode="rotate">Rotate</button>
+            <button class="mode-tab" type="button" data-drag-mode="pan">Pan</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="visual-surface" aria-label="Stacked ternary plot">
+        <div class="plot-toolbar">
+          <div class="legend" id="legend" aria-label="Phase legend"></div>
+          <div class="figure-controls">
+            <div class="figure-actions">
+              <button id="resetView" class="tool-button" type="button">Reset View</button>
+              <button id="downloadPng" class="tool-button primary" type="button">Download PNG</button>
+            </div>
+          </div>
+        </div>
+        <div class="plot-frame">
+          <svg id="ternaryStack" role="img" aria-label="Five stacked ternary phase layers"></svg>
+          <div class="view-gizmo" aria-label="View and zoom controls">
+            <button class="gizmo-axis z-axis" type="button" data-view="z" title="Top view">Z</button>
+            <div class="gizmo-row">
+              <button class="gizmo-axis y-axis" type="button" data-view="y" title="Front view">Y</button>
+              <button class="gizmo-axis x-axis" type="button" data-view="x" title="Side view">X</button>
+            </div>
+            <div class="gizmo-zoom">
+              <button id="zoomIn" type="button" title="Zoom in">+</button>
+              <button id="zoomOut" type="button" title="Zoom out">-</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="detail-panel" aria-label="Selected sample phase result">
+        <div class="detail-heading">
+          <p class="eyebrow" id="detailDataset">WW</p>
+          <h2 id="detailTitle">Sample 34</h2>
+        </div>
+
+        <div class="phase-result">
+          <span id="selectedConcentration">100 mg mL<sup>-1</sup></span>
+          <strong id="selectedPhase">-</strong>
+        </div>
+
+        <dl class="composition-grid">
+          <div>
+            <dt>M</dt>
+            <dd id="detailM">-</dd>
+          </div>
+          <div>
+            <dt>L</dt>
+            <dd id="detailL">-</dd>
+          </div>
+          <div>
+            <dt>BSA</dt>
+            <dd id="detailBSA">-</dd>
+          </div>
+          <div>
+            <dt>L/M</dt>
+            <dd id="detailRatio">-</dd>
+          </div>
+        </dl>
+
+        <div class="phase-table-wrap">
+          <table class="phase-table">
+            <thead>
+              <tr>
+                <th>Total concentration</th>
+                <th>Phase</th>
+              </tr>
+            </thead>
+            <tbody id="phaseRows"></tbody>
+          </table>
+        </div>
+      </aside>
+    </main>
+
+    <script src="data/phase-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

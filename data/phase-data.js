@@ -240,10 +240,10 @@
                                     "ratio":  1,
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
-                                                   "25 mg/mL":  "11%SOD+89%ZIF-C",
+                                                   "25 mg/mL":  "5%SOD+95%ZIF-C",
                                                    "50 mg/mL":  "ZIF-C",
-                                                   "75 mg/mL":  "5%SOD+ZIF-C",
-                                                   "100 mg/mL":  "6%SOD+94%ZIF-C"
+                                                   "75 mg/mL":  "2%SOD+98%ZIF-C",
+                                                   "100 mg/mL":  "4%SOD+96%ZIF-C"
                                                }
                                 },
                                 {
@@ -254,10 +254,10 @@
                                     "ratio":  0.75,
                                     "phases":  {
                                                    "12.5 mg/mL":  "amorphous",
-                                                   "25 mg/mL":  "7%SOD+93%ZIF-C",
-                                                   "50 mg/mL":  "8%SOD+ZIF-C",
-                                                   "75 mg/mL":  "8%SOD+92%ZIF-C",
-                                                   "100 mg/mL":  "9%SOD+91%ZIF-C"
+                                                   "25 mg/mL":  "2%sod+98%ZIF-C",
+                                                   "50 mg/mL":  "4%SOD+96%ZIF-C",
+                                                   "75 mg/mL":  "2%SOD+98%ZIF-C",
+                                                   "100 mg/mL":  "8%SOD+92%ZIF-C"
                                                }
                                 },
                                 {
@@ -269,7 +269,7 @@
                                     "phases":  {
                                                    "12.5 mg/mL":  "amorphous",
                                                    "25 mg/mL":  "ZIF-C",
-                                                   "50 mg/mL":  "8%SOD+92%ZIF-C",
+                                                   "50 mg/mL":  "23%SOD+77%ZIF-C",
                                                    "75 mg/mL":  "ZIF-C",
                                                    "100 mg/mL":  "amorphous"
                                                }
@@ -354,7 +354,7 @@
                                                    "12.5 mg/mL":  "ZIF-C",
                                                    "25 mg/mL":  "ZIF-C",
                                                    "50 mg/mL":  "ZIF-C",
-                                                   "75 mg/mL":  "ZIF-C+U12",
+                                                   "75 mg/mL":  "83%ZIF-C+17%U12",
                                                    "100 mg/mL":  "ZIF-C"
                                                }
                                 },
@@ -436,7 +436,7 @@
                                     "ratio":  3,
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
-                                                   "25 mg/mL":  "14%SOD+86%ZIF-C",
+                                                   "25 mg/mL":  "20%SOD+80%ZIF-C",
                                                    "50 mg/mL":  "SOD",
                                                    "75 mg/mL":  "SOD",
                                                    "100 mg/mL":  "SOD"
@@ -450,7 +450,7 @@
                                     "ratio":  2,
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
-                                                   "25 mg/mL":  "30%DIA+70%ZIF-C",
+                                                   "25 mg/mL":  "52%DIA+48%ZIF-C",
                                                    "50 mg/mL":  "DIA",
                                                    "75 mg/mL":  "DIA",
                                                    "100 mg/mL":  "DIA"
@@ -478,9 +478,9 @@
                                     "ratio":  3.5,
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
-                                                   "25 mg/mL":  "9%SOD+91%DIA",
-                                                   "50 mg/mL":  "15%SOD+85%DIA",
-                                                   "75 mg/mL":  "83%SOD+17%DIA",
+                                                   "25 mg/mL":  "37%SOD+63%DIA",
+                                                   "50 mg/mL":  "24%SOD+76%DIA",
+                                                   "75 mg/mL":  "75%SOD+25%DIA",
                                                    "100 mg/mL":  "SOD"
                                                }
                                 },
@@ -492,7 +492,7 @@
                                     "ratio":  8,
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
-                                                   "25 mg/mL":  "SOD+2%ZIF-C",
+                                                   "25 mg/mL":  "95%SOD+2%ZIF-C",
                                                    "50 mg/mL":  "SOD",
                                                    "75 mg/mL":  "SOD",
                                                    "100 mg/mL":  "SOD"
@@ -958,8 +958,8 @@
                                                    "12.5 mg/mL":  "Sodalite",
                                                    "25 mg/mL":  "Sodalite",
                                                    "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "SOD+DIA",
-                                                   "100 mg/mL":  "SOD+DIA"
+                                                   "75 mg/mL":  "7%SOD+93%DIA",
+                                                   "100 mg/mL":  "20%SOD+80%DIA"
                                                }
                                 },
                                 {

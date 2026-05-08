@@ -873,7 +873,11 @@ function exportStyles() {
     .tick-label { fill: #000000; font-size: 13px; font-weight: 720; }
     .sample-hit { fill: transparent; }
     .sample-dot { stroke: #ffffff; stroke-width: 2; }
+<<<<<<< Updated upstream
     .sample-number { fill: #000000; font-size: 9.5px; font-weight: 800; text-anchor: middle; dominant-baseline: middle; }
+=======
+    .sample-number { fill: #000000; font-size: 9.5px; font-weight: 800; text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; }
+>>>>>>> Stashed changes
     .sample-ring { opacity: 0; }
     .sample-point.is-selected-sample .sample-dot { stroke: #1d2528; stroke-width: 2.4; }
     .sample-point.is-selected-layer .sample-ring { fill: none; stroke: #1d2528; stroke-width: 3; opacity: 1; }

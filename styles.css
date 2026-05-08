@@ -239,7 +239,7 @@ h2 {
 
 .plot-frame {
   position: relative;
-  overflow: auto;
+  overflow: hidden;
   min-height: 760px;
   height: calc(100vh - 158px);
   cursor: grab;
@@ -261,8 +261,8 @@ h2 {
 #ternaryStack {
   display: block;
   width: 100%;
-  min-width: 840px;
-  height: 1100px;
+  min-width: 0;
+  height: 100%;
   touch-action: none;
 }
 
@@ -270,6 +270,7 @@ h2 {
   position: absolute;
   right: 16px;
   bottom: 16px;
+  z-index: 5;
   display: grid;
   justify-items: center;
   gap: 6px;
@@ -324,11 +325,11 @@ h2 {
 }
 
 .layer-shadow {
-  fill: rgba(39, 42, 39, 0.045);
+  fill: transparent;
 }
 
 .layer-plane {
-  fill: rgba(255, 253, 248, 0.18);
+  fill: transparent;
   stroke: rgba(45, 47, 41, 0.62);
   stroke-width: 1.25;
 }
@@ -346,21 +347,21 @@ h2 {
 }
 
 .layer-label {
-  fill: #2f383a;
-  font-size: 13px;
+  fill: #000000;
+  font-size: 26px;
   font-weight: 760;
 }
 
 .axis-label {
-  fill: #506064;
-  font-size: 10.5px;
+  fill: #000000;
+  font-size: 22px;
   font-weight: 780;
 }
 
 .tick-label {
-  fill: rgba(67, 77, 79, 0.82);
-  font-size: 8.2px;
-  font-weight: 680;
+  fill: #000000;
+  font-size: 20px;
+  font-weight: 720;
 }
 
 .sample-point {
@@ -379,8 +380,8 @@ h2 {
 }
 
 .sample-number {
-  fill: #162124;
-  font-size: 8.6px;
+  fill: #000000;
+  font-size: 17px;
   font-weight: 800;
   text-anchor: middle;
   dominant-baseline: middle;

@@ -111,11 +111,30 @@ function renderConcentrationHtml(container, value) {
   container.replaceChildren(document.createTextNode(concentrationPrefix(value)), sup);
 }
 
+function visualSizeScale() {
+  return Math.min(2.8, Math.max(1.25, 1.25 + (state.zoom - 1) * 0.9));
+}
+
+function scaledSize(value) {
+  return value * visualSizeScale();
+}
+
+function textSizeForClass(className) {
+  const sizes = {
+    "layer-label": 21,
+    "axis-label": 18,
+    "tick-label": 16,
+    "sample-number": 13.5,
+  };
+  return sizes[className] || 16;
+}
+
 function svgConcentrationText(group, value, point, className, attrs = {}) {
   const node = createSvgElement("text", {
     class: className,
     x: point.x,
     y: point.y,
+    style: `font-size: ${scaledSize(textSizeForClass(className))}px`,
     ...attrs,
   });
   const base = createSvgElement("tspan");
@@ -340,6 +359,7 @@ function textAt(group, text, point, className, attrs = {}) {
     class: className,
     x: point.x,
     y: point.y,
+    style: `font-size: ${scaledSize(textSizeForClass(className))}px`,
     ...attrs,
   });
   node.textContent = text;
@@ -483,25 +503,26 @@ function renderSamples(group, concentration, index, fit, samples) {
         class: "sample-hit",
         cx: point.x,
         cy: point.y,
-        r: 16,
+        r: scaledSize(25),
       }),
       createSvgElement("circle", {
         class: "sample-ring",
         cx: point.x,
         cy: point.y,
-        r: 13.5,
+        r: scaledSize(18),
       }),
       createSvgElement("circle", {
         class: "sample-dot",
         cx: point.x,
         cy: point.y,
-        r: 9.2,
+        r: scaledSize(12.5),
         fill: colorForPhase(phase),
       }),
       createSvgElement("text", {
         class: "sample-number",
         x: point.x,
         y: point.y + 0.6,
+        style: `font-size: ${scaledSize(textSizeForClass("sample-number"))}px`,
       }),
     );
     sampleGroup.lastElementChild.textContent = sample.sample;
@@ -553,7 +574,7 @@ function renderLayer(concentration, index, fit, samples) {
   const minY = Math.min(...vertices.map((point) => point.y));
   const maxY = Math.max(...vertices.map((point) => point.y));
   const labelPoint = {
-    x: minX - 88,
+    x: minX - 112,
     y: (minY + maxY) / 2,
   };
   svgConcentrationText(group, concentration, labelPoint, "layer-label", {
@@ -841,22 +862,46 @@ function bindRotation() {
 
 function exportStyles() {
   return `
-    svg { background: transparent; }
+    svg { background: #ffffff; }
     text { font-family: Arial, sans-serif; letter-spacing: 0; }
-    .layer-shadow { fill: rgba(39, 42, 39, 0.045); }
-    .layer-plane { fill: rgba(255, 253, 248, 0.18); stroke: rgba(45, 47, 41, 0.62); stroke-width: 1.25; }
+    .layer-shadow { fill: transparent; }
+    .layer-plane { fill: transparent; stroke: rgba(45, 47, 41, 0.62); stroke-width: 1.25; }
     .layer-grid { stroke: rgba(124, 117, 103, 0.28); stroke-width: 0.9; }
     .layer-edge { stroke: rgba(29, 37, 40, 0.58); stroke-width: 1; }
-    .layer-label { fill: #2f383a; font-size: 13px; font-weight: 760; }
-    .axis-label { fill: #506064; font-size: 10.5px; font-weight: 780; }
-    .tick-label { fill: rgba(67, 77, 79, 0.82); font-size: 8.2px; font-weight: 680; }
+    .layer-label { fill: #000000; font-size: 18px; font-weight: 760; }
+    .axis-label { fill: #000000; font-size: 15px; font-weight: 780; }
+    .tick-label { fill: #000000; font-size: 13px; font-weight: 720; }
     .sample-hit { fill: transparent; }
     .sample-dot { stroke: #ffffff; stroke-width: 2; }
-    .sample-number { fill: #162124; font-size: 8.6px; font-weight: 800; text-anchor: middle; dominant-baseline: middle; }
+    .sample-number { fill: #000000; font-size: 9.5px; font-weight: 800; text-anchor: middle; dominant-baseline: middle; }
     .sample-ring { opacity: 0; }
     .sample-point.is-selected-sample .sample-dot { stroke: #1d2528; stroke-width: 2.4; }
     .sample-point.is-selected-layer .sample-ring { fill: none; stroke: #1d2528; stroke-width: 3; opacity: 1; }
   `;
+}
+
+function cloneSvgForFullExport() {
+  const previousView = {
+    zoom: state.zoom,
+    panX: state.panX,
+    panY: state.panY,
+  };
+
+  state = {
+    ...state,
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+  };
+  renderPlot();
+  const clone = cloneSvgForExport();
+
+  state = {
+    ...state,
+    ...previousView,
+  };
+  renderPlot();
+  return clone;
 }
 
 function cloneSvgForExport() {
@@ -865,10 +910,18 @@ function cloneSvgForExport() {
   clone.setAttribute("width", plot.width);
   clone.setAttribute("height", plot.height);
 
+  const background = createSvgElement("rect", {
+    x: 0,
+    y: 0,
+    width: plot.width,
+    height: plot.height,
+    fill: "#ffffff",
+  });
   const defs = createSvgElement("defs");
   const style = createSvgElement("style");
   style.textContent = exportStyles();
   defs.append(style);
+  clone.prepend(background);
   clone.prepend(defs);
   return clone;
 }
@@ -969,7 +1022,7 @@ async function pngWithDpi(blob, dpi) {
 }
 
 function downloadPng() {
-  const clone = cloneSvgForExport();
+  const clone = cloneSvgForFullExport();
   const svgText = new XMLSerializer().serializeToString(clone);
   const svgBlob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(svgBlob);
@@ -981,7 +1034,8 @@ function downloadPng() {
     canvas.width = plot.width * plot.exportScale;
     canvas.height = plot.height * plot.exportScale;
     const context = canvas.getContext("2d");
-    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
     canvas.toBlob(
       async (blob) => {

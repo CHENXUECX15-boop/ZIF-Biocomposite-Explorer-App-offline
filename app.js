@@ -54,6 +54,7 @@ let state = {
 
 let dragState = null;
 let hitTargets = [];
+let isExporting = false;
 
 const els = {
   svg: document.getElementById("ternaryStack"),
@@ -112,11 +113,18 @@ function renderConcentrationHtml(container, value) {
 }
 
 function visualSizeScale() {
+  if (isExporting) {
+    return 0.78;
+  }
   return Math.min(2.8, Math.max(1.25, 1.25 + (state.zoom - 1) * 0.9));
 }
 
 function scaledSize(value) {
   return value * visualSizeScale();
+}
+
+function scaledSampleSize(value) {
+  return scaledSize(value) * (isExporting ? 1.6 : 1);
 }
 
 function textSizeForClass(className) {
@@ -503,26 +511,26 @@ function renderSamples(group, concentration, index, fit, samples) {
         class: "sample-hit",
         cx: point.x,
         cy: point.y,
-        r: scaledSize(25),
+        r: scaledSampleSize(25),
       }),
       createSvgElement("circle", {
         class: "sample-ring",
         cx: point.x,
         cy: point.y,
-        r: scaledSize(18),
+        r: scaledSampleSize(18),
       }),
       createSvgElement("circle", {
         class: "sample-dot",
         cx: point.x,
         cy: point.y,
-        r: scaledSize(12.5),
+        r: scaledSampleSize(12.5),
         fill: colorForPhase(phase),
       }),
       createSvgElement("text", {
         class: "sample-number",
         x: point.x,
         y: point.y + 0.6,
-        style: `font-size: ${scaledSize(textSizeForClass("sample-number"))}px`,
+        style: `font-size: ${scaledSampleSize(textSizeForClass("sample-number"))}px`,
       }),
     );
     sampleGroup.lastElementChild.textContent = sample.sample;
@@ -873,11 +881,7 @@ function exportStyles() {
     .tick-label { fill: #000000; font-size: 13px; font-weight: 720; }
     .sample-hit { fill: transparent; }
     .sample-dot { stroke: #ffffff; stroke-width: 2; }
-<<<<<<< Updated upstream
-    .sample-number { fill: #000000; font-size: 9.5px; font-weight: 800; text-anchor: middle; dominant-baseline: middle; }
-=======
     .sample-number { fill: #000000; font-size: 9.5px; font-weight: 800; text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; }
->>>>>>> Stashed changes
     .sample-ring { opacity: 0; }
     .sample-point.is-selected-sample .sample-dot { stroke: #1d2528; stroke-width: 2.4; }
     .sample-point.is-selected-layer .sample-ring { fill: none; stroke: #1d2528; stroke-width: 3; opacity: 1; }
@@ -889,13 +893,16 @@ function cloneSvgForFullExport() {
     zoom: state.zoom,
     panX: state.panX,
     panY: state.panY,
+    layerGap: state.layerGap,
   };
 
+  isExporting = true;
   state = {
     ...state,
     zoom: 1,
     panX: 0,
     panY: 0,
+    layerGap: previousView.layerGap,
   };
   renderPlot();
   const clone = cloneSvgForExport();
@@ -904,6 +911,7 @@ function cloneSvgForFullExport() {
     ...state,
     ...previousView,
   };
+  isExporting = false;
   renderPlot();
   return clone;
 }

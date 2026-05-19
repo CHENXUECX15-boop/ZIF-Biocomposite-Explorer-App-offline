@@ -9,8 +9,8 @@
   <body>
     <header class="app-header">
       <div>
-        <p class="eyebrow">XRD phase map</p>
-        <h1>Phase Ternary Stack</h1>
+        <p class="eyebrow"></p>
+        <h1>ZIF Biocomposite Explorer App - Offline Version</h1>
       </div>
     </header>
 
@@ -27,6 +27,62 @@
         <section class="control-section">
           <h2>Concentration</h2>
           <div class="filter-group" id="concentrationFilters" aria-label="Concentration filter"></div>
+        </section>
+
+        <section class="control-section">
+          <h2>Visualization</h2>
+          <div class="metric-tabs" id="visualizationFilters" aria-label="Visualization mode">
+            <button class="metric-tab is-active" type="button" data-visualization="phase">Phase</button>
+            <button class="metric-tab" type="button" data-visualization="EE">EE%</button>
+            <button class="metric-tab" type="button" data-visualization="LC">LC%</button>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <h2>filters</h2>
+          <div class="range-filter-grid" id="valueFilters" aria-label="M, L, BSA, EE, and LC filters">
+            <label class="range-filter">
+              <span>M%</span>
+              <span class="range-fields">
+                <input type="number" min="0" max="100" step="1" value="0" data-filter-key="M" data-range-bound="min" />
+                <span>-</span>
+                <input type="number" min="0" max="100" step="1" value="100" data-filter-key="M" data-range-bound="max" />
+              </span>
+            </label>
+            <label class="range-filter">
+              <span>L%</span>
+              <span class="range-fields">
+                <input type="number" min="0" max="100" step="1" value="0" data-filter-key="L" data-range-bound="min" />
+                <span>-</span>
+                <input type="number" min="0" max="100" step="1" value="100" data-filter-key="L" data-range-bound="max" />
+              </span>
+            </label>
+            <label class="range-filter">
+              <span>BSA%</span>
+              <span class="range-fields">
+                <input type="number" min="0" max="100" step="1" value="0" data-filter-key="BSA" data-range-bound="min" />
+                <span>-</span>
+                <input type="number" min="0" max="100" step="1" value="100" data-filter-key="BSA" data-range-bound="max" />
+              </span>
+            </label>
+            <label class="range-filter">
+              <span>EE%</span>
+              <span class="range-fields">
+                <input type="number" min="0" max="100" step="0.1" value="0" data-filter-key="EE" data-range-bound="min" />
+                <span>-</span>
+                <input type="number" min="0" max="100" step="0.1" value="100" data-filter-key="EE" data-range-bound="max" />
+              </span>
+            </label>
+            <label class="range-filter">
+              <span>LC%</span>
+              <span class="range-fields">
+                <input type="number" min="0" max="100" step="0.1" value="0" data-filter-key="LC" data-range-bound="min" />
+                <span>-</span>
+                <input type="number" min="0" max="100" step="0.1" value="100" data-filter-key="LC" data-range-bound="max" />
+              </span>
+            </label>
+          </div>
+          <button id="resetValueFilters" class="filter-reset" type="button">Reset filters</button>
         </section>
 
         <section class="control-section">
@@ -56,10 +112,13 @@
         <div class="plot-frame">
           <svg id="ternaryStack" role="img" aria-label="Five stacked ternary phase layers"></svg>
           <div class="view-gizmo" aria-label="View and zoom controls">
-            <button class="gizmo-axis z-axis" type="button" data-view="z" title="Top view">Z</button>
             <div class="gizmo-row">
-              <button class="gizmo-axis y-axis" type="button" data-view="y" title="Front view">Y</button>
               <button class="gizmo-axis x-axis" type="button" data-view="x" title="Side view">X</button>
+              <button class="gizmo-axis y-axis" type="button" data-view="y" title="Front view">Y</button>
+            </div>
+            <div class="gizmo-row">
+              <button class="gizmo-axis z-axis" type="button" data-view="z" title="Top view">Z</button>
+              <button class="gizmo-axis l-axis" type="button" data-view="l" title="L direction">L</button>
             </div>
             <div class="gizmo-zoom">
               <button id="zoomIn" type="button" title="Zoom in">+</button>
@@ -97,6 +156,14 @@
             <dt>L/M</dt>
             <dd id="detailRatio">-</dd>
           </div>
+          <div>
+            <dt>EE +/- error bar</dt>
+            <dd id="detailEE">-</dd>
+          </div>
+          <div>
+            <dt>LC</dt>
+            <dd id="detailLC">-</dd>
+          </div>
         </dl>
 
         <div class="phase-table-wrap">
@@ -105,15 +172,51 @@
               <tr>
                 <th>Total concentration</th>
                 <th>Phase</th>
+                <th>EE%</th>
+                <th>LC%</th>
               </tr>
             </thead>
             <tbody id="phaseRows"></tbody>
           </table>
         </div>
+
+        <section class="xrd-panel" aria-label="Selected sample PXRD patterns">
+          <div class="xrd-heading">
+            <h3>PXRD patterns</h3>
+            <div class="spectrum-toolbar">
+              <span id="xrdStatus">-</span>
+              <button id="xrdDownloadCsv" class="spectrum-button" type="button" title="Download PXRD CSV">CSV</button>
+              <button id="xrdDownloadPng" class="spectrum-button" type="button" title="Download PXRD PNG">PNG</button>
+              <button id="xrdReset" class="spectrum-button" type="button" title="Reset PXRD zoom and pan">Reset</button>
+              <button id="xrdZoomOut" class="spectrum-button icon-button" type="button" title="PXRD zoom out">-</button>
+              <button id="xrdZoomIn" class="spectrum-button icon-button" type="button" title="PXRD zoom in">+</button>
+            </div>
+          </div>
+          <svg id="xrdPlot" role="img" aria-label="Triplicate PXRD patterns"></svg>
+          <div class="xrd-legend" id="xrdLegend"></div>
+        </section>
+
+        <section class="xrd-panel ir-panel" aria-label="Selected sample ATR-IR spectrum">
+          <div class="xrd-heading">
+            <h3>ATR-IR spectrum</h3>
+            <div class="spectrum-toolbar">
+              <span id="irStatus">-</span>
+              <button id="irDownloadCsv" class="spectrum-button" type="button" title="Download ATR-IR CSV">CSV</button>
+              <button id="irDownloadPng" class="spectrum-button" type="button" title="Download ATR-IR PNG">PNG</button>
+              <button id="irReset" class="spectrum-button" type="button" title="Reset ATR-IR zoom and pan">Reset</button>
+              <button id="irZoomOut" class="spectrum-button icon-button" type="button" title="ATR-IR zoom out">-</button>
+              <button id="irZoomIn" class="spectrum-button icon-button" type="button" title="ATR-IR zoom in">+</button>
+            </div>
+          </div>
+          <svg id="irPlot" role="img" aria-label="Selected sample ATR-IR spectrum"></svg>
+        </section>
       </aside>
     </main>
 
     <script src="data/phase-data.js"></script>
+    <script src="data/metrics-data.js"></script>
+    <script src="data/xrd-data.js"></script>
+    <script src="data/ir-data.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

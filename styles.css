@@ -1,8 +1,8 @@
 :root {
   color-scheme: light;
-  --bg: #f6f4ef;
-  --surface: #fffdf8;
-  --surface-strong: #ffffff;
+  --bg: #f7f4ed;
+  --surface: #ffffff;
+  --surface-strong: #efe7d8;
   --ink: #1d2528;
   --muted: #637074;
   --line: #d9d1c4;
@@ -74,7 +74,8 @@ h2 {
 }
 
 .dataset-tabs,
-.mode-tabs {
+.mode-tabs,
+.metric-tabs {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -86,6 +87,7 @@ h2 {
 
 .dataset-tab,
 .mode-tab,
+.metric-tab,
 .filter-button {
   min-width: 64px;
   border: 0;
@@ -98,6 +100,7 @@ h2 {
 
 .dataset-tab.is-active,
 .mode-tab.is-active,
+.metric-tab.is-active,
 .filter-button.is-active {
   background: var(--ink);
   color: #ffffff;
@@ -105,7 +108,7 @@ h2 {
 
 .app-shell {
   display: grid;
-  grid-template-columns: minmax(210px, 250px) minmax(0, 1fr) minmax(320px, 390px);
+  grid-template-columns: minmax(210px, 250px) minmax(680px, 1fr) minmax(420px, 520px);
   gap: 20px;
   padding: 0 clamp(18px, 3vw, 44px) 32px;
 }
@@ -120,8 +123,15 @@ h2 {
 }
 
 .visual-surface {
+  display: grid;
+  grid-template-rows: auto minmax(760px, 1fr);
   min-width: 0;
   overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(217, 209, 196, 0.34) 1px, transparent 1px),
+    linear-gradient(rgba(217, 209, 196, 0.28) 1px, transparent 1px),
+    #fbfaf6;
+  background-size: 38px 38px;
 }
 
 .controls-panel {
@@ -170,6 +180,55 @@ h2 {
   vertical-align: -1px;
 }
 
+.range-filter-grid {
+  display: grid;
+  gap: 7px;
+}
+
+.range-filter {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.range-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+}
+
+.range-fields input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 6px;
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.filter-reset {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.filter-reset:hover {
+  color: var(--ink);
+}
+
 .plot-toolbar {
   display: flex;
   align-items: center;
@@ -178,6 +237,7 @@ h2 {
   min-height: 62px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--line);
+  background: var(--surface);
 }
 
 .figure-controls {
@@ -214,6 +274,31 @@ h2 {
   border-radius: 50%;
 }
 
+.metric-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #3e494c;
+  font-size: 12px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.metric-scale {
+  width: 126px;
+  height: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.22);
+  border-radius: 999px;
+}
+
+.metric-missing {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #4a4a4a;
+  border-radius: 50%;
+  background: #4a4a4a;
+}
+
 .figure-actions {
   display: inline-flex;
   align-items: center;
@@ -241,8 +326,21 @@ h2 {
   position: relative;
   overflow: hidden;
   min-height: 760px;
-  height: calc(100vh - 158px);
+  height: auto;
   cursor: grab;
+  isolation: isolate;
+  background:
+    linear-gradient(90deg, rgba(217, 209, 196, 0.34) 1px, transparent 1px),
+    linear-gradient(rgba(217, 209, 196, 0.28) 1px, transparent 1px),
+    #fbfaf6;
+  background-size: 38px 38px;
+}
+
+.plot-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background:
     linear-gradient(90deg, rgba(217, 209, 196, 0.34) 1px, transparent 1px),
     linear-gradient(rgba(217, 209, 196, 0.28) 1px, transparent 1px),
@@ -259,11 +357,28 @@ h2 {
 }
 
 #ternaryStack {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   min-width: 0;
   height: 100%;
+  background: transparent;
   touch-action: none;
+}
+
+.plot-grid-bg {
+  pointer-events: none;
+}
+
+.plot-grid-fill {
+  fill: #fbfaf6;
+}
+
+.plot-grid-line {
+  stroke: rgba(217, 209, 196, 0.34);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
 }
 
 .view-gizmo {
@@ -313,6 +428,10 @@ h2 {
 
 .gizmo-axis.z-axis {
   background: #2674d9;
+}
+
+.gizmo-axis.l-axis {
+  background: #1d2528;
 }
 
 .gizmo-zoom {
@@ -523,7 +642,7 @@ sup {
 
 .phase-chip {
   display: inline-flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   max-width: 100%;
   border: 1px solid rgba(29, 37, 40, 0.14);
@@ -532,7 +651,182 @@ sup {
   color: #172124;
   font-weight: 720;
   line-height: 1.1;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+}
+
+.metric-value {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(29, 37, 40, 0.14);
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: #f8f6f1;
+  color: var(--ink);
+  font-weight: 760;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.xrd-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #ffffff;
+}
+
+.xrd-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.xrd-heading h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 860;
+}
+
+.xrd-heading span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.spectrum-toolbar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.spectrum-button {
+  min-width: 34px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 5px 7px;
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.spectrum-button:hover {
+  border-color: var(--line-strong);
+}
+
+.spectrum-button:disabled {
+  color: var(--muted);
+  cursor: default;
+  opacity: 0.45;
+}
+
+.spectrum-button.icon-button {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+}
+
+#xrdPlot {
+  display: block;
+  width: 100%;
+  aspect-ratio: 520 / 330;
+  cursor: grab;
+  touch-action: none;
+}
+
+#irPlot {
+  display: block;
+  width: 100%;
+  aspect-ratio: 520 / 260;
+  cursor: grab;
+  touch-action: none;
+}
+
+#xrdPlot.is-spectrum-dragging,
+#irPlot.is-spectrum-dragging {
+  cursor: grabbing;
+}
+
+.xrd-plot-bg {
+  fill: #fffdf8;
+}
+
+.xrd-grid-line {
+  stroke: rgba(29, 37, 40, 0.12);
+  stroke-width: 1;
+}
+
+.xrd-axis-line {
+  stroke: #172124;
+  stroke-width: 1.6;
+}
+
+.xrd-pattern-line {
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.ir-pattern-line {
+  fill: none;
+  stroke: #ee0000;
+  stroke-width: 1.9;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.xrd-tick-label,
+.xrd-axis-title {
+  fill: #172124;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.xrd-axis-title {
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.xrd-empty {
+  fill: var(--muted);
+  font-size: 18px;
+  font-weight: 780;
+}
+
+.xrd-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.xrd-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.xrd-legend-item.is-missing {
+  color: var(--muted);
+}
+
+.xrd-swatch {
+  width: 20px;
+  height: 3px;
+  border-radius: 999px;
 }
 
 @media (max-width: 980px) {
@@ -570,5 +864,9 @@ sup {
 
   .plot-frame {
     min-height: 620px;
+  }
+
+  .visual-surface {
+    grid-template-rows: auto minmax(620px, 1fr);
   }
 }

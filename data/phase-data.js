@@ -214,8 +214,8 @@
                                                    "12.5 mg/mL":  "amorphous",
                                                    "25 mg/mL":  "amorphous",
                                                    "50 mg/mL":  "amorphous",
-                                                   "75 mg/mL":  "SOD",
-                                                   "100 mg/mL":  "SOD"
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -240,10 +240,10 @@
                                     "ratio":  1,
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
-                                                   "25 mg/mL":  "5%SOD+95%ZIF-C",
+                                                   "25 mg/mL":  "5%sod+95%ZIF-C",
                                                    "50 mg/mL":  "ZIF-C",
-                                                   "75 mg/mL":  "2%SOD+98%ZIF-C",
-                                                   "100 mg/mL":  "4%SOD+96%ZIF-C"
+                                                   "75 mg/mL":  "2%sod+98%ZIF-C",
+                                                   "100 mg/mL":  "4%sod+96%ZIF-C"
                                                }
                                 },
                                 {
@@ -255,9 +255,9 @@
                                     "phases":  {
                                                    "12.5 mg/mL":  "amorphous",
                                                    "25 mg/mL":  "2%sod+98%ZIF-C",
-                                                   "50 mg/mL":  "4%SOD+96%ZIF-C",
-                                                   "75 mg/mL":  "2%SOD+98%ZIF-C",
-                                                   "100 mg/mL":  "8%SOD+92%ZIF-C"
+                                                   "50 mg/mL":  "4%sod+96%ZIF-C",
+                                                   "75 mg/mL":  "2%sod+98%ZIF-C",
+                                                   "100 mg/mL":  "8%sod+92%ZIF-C"
                                                }
                                 },
                                 {
@@ -269,7 +269,7 @@
                                     "phases":  {
                                                    "12.5 mg/mL":  "amorphous",
                                                    "25 mg/mL":  "ZIF-C",
-                                                   "50 mg/mL":  "23%SOD+77%ZIF-C",
+                                                   "50 mg/mL":  "23%sod+77%ZIF-C",
                                                    "75 mg/mL":  "ZIF-C",
                                                    "100 mg/mL":  "amorphous"
                                                }
@@ -297,9 +297,9 @@
                                     "phases":  {
                                                    "12.5 mg/mL":  "amorphous",
                                                    "25 mg/mL":  "amorphous",
-                                                   "50 mg/mL":  "SOD",
-                                                   "75 mg/mL":  "SOD",
-                                                   "100 mg/mL":  "SOD"
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -313,7 +313,7 @@
                                                    "25 mg/mL":  "ZIF-C",
                                                    "50 mg/mL":  "amorphous",
                                                    "75 mg/mL":  "amorphous",
-                                                   "100 mg/mL":  "SOD"
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -367,9 +367,9 @@
                                     "phases":  {
                                                    "12.5 mg/mL":  "amorphous",
                                                    "25 mg/mL":  "amorphous",
-                                                   "50 mg/mL":  "SOD",
-                                                   "75 mg/mL":  "SOD",
-                                                   "100 mg/mL":  "SOD"
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -380,10 +380,10 @@
                                     "ratio":  2.5,
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
-                                                   "25 mg/mL":  "65%SOD+35%ZIF-C",
+                                                   "25 mg/mL":  "65%sod+35%ZIF-C",
                                                    "50 mg/mL":  "amorphous",
-                                                   "75 mg/mL":  "SOD",
-                                                   "100 mg/mL":  "SOD"
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -397,7 +397,7 @@
                                                    "25 mg/mL":  "ZIF-C",
                                                    "50 mg/mL":  "ZIF-C",
                                                    "75 mg/mL":  "ZIF-C",
-                                                   "100 mg/mL":  "SOD"
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -423,9 +423,9 @@
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
                                                    "25 mg/mL":  "amorphous",
-                                                   "50 mg/mL":  "SOD",
-                                                   "75 mg/mL":  "SOD",
-                                                   "100 mg/mL":  "SOD"
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -436,10 +436,10 @@
                                     "ratio":  3,
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
-                                                   "25 mg/mL":  "20%SOD+80%ZIF-C",
-                                                   "50 mg/mL":  "SOD",
-                                                   "75 mg/mL":  "SOD",
-                                                   "100 mg/mL":  "SOD"
+                                                   "25 mg/mL":  "20%sod+80%ZIF-C",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -450,10 +450,10 @@
                                     "ratio":  2,
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
-                                                   "25 mg/mL":  "52%DIA+48%ZIF-C",
-                                                   "50 mg/mL":  "DIA",
-                                                   "75 mg/mL":  "DIA",
-                                                   "100 mg/mL":  "DIA"
+                                                   "25 mg/mL":  "52%dia+48%ZIF-C",
+                                                   "50 mg/mL":  "dia",
+                                                   "75 mg/mL":  "dia",
+                                                   "100 mg/mL":  "dia"
                                                }
                                 },
                                 {
@@ -465,9 +465,9 @@
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
                                                    "25 mg/mL":  "amorphous",
-                                                   "50 mg/mL":  "SOD",
-                                                   "75 mg/mL":  "SOD",
-                                                   "100 mg/mL":  "SOD"
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -478,10 +478,10 @@
                                     "ratio":  3.5,
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
-                                                   "25 mg/mL":  "37%SOD+63%DIA",
-                                                   "50 mg/mL":  "24%SOD+76%DIA",
-                                                   "75 mg/mL":  "75%SOD+25%DIA",
-                                                   "100 mg/mL":  "SOD"
+                                                   "25 mg/mL":  "37%sod+63%dia",
+                                                   "50 mg/mL":  "24%sod+76%dia",
+                                                   "75 mg/mL":  "75%sod+25%dia",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -492,10 +492,10 @@
                                     "ratio":  8,
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
-                                                   "25 mg/mL":  "95%SOD+2%ZIF-C",
-                                                   "50 mg/mL":  "SOD",
-                                                   "75 mg/mL":  "SOD",
-                                                   "100 mg/mL":  "SOD"
+                                                   "25 mg/mL":  "95%sod+2%ZIF-C",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -619,11 +619,11 @@
                                     "BSA":  70,
                                     "ratio":  2,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -633,11 +633,11 @@
                                     "BSA":  60,
                                     "ratio":  1,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -647,11 +647,11 @@
                                     "BSA":  50,
                                     "ratio":  0.666666666666667,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -661,11 +661,11 @@
                                     "BSA":  40,
                                     "ratio":  0.5,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
+                                                   "12.5 mg/mL":  "sod",
                                                    "25 mg/mL":  "amorphous",
                                                    "50 mg/mL":  "amorphous",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -717,11 +717,11 @@
                                     "BSA":  60,
                                     "ratio":  3,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -731,11 +731,11 @@
                                     "BSA":  50,
                                     "ratio":  1.5,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -745,11 +745,11 @@
                                     "BSA":  40,
                                     "ratio":  1,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -759,11 +759,11 @@
                                     "BSA":  30,
                                     "ratio":  0.75,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -773,11 +773,11 @@
                                     "BSA":  20,
                                     "ratio":  0.6,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -790,7 +790,7 @@
                                                    "12.5 mg/mL":  "U13",
                                                    "25 mg/mL":  "U13",
                                                    "50 mg/mL":  "U13",
-                                                   "75 mg/mL":  "Sodalite",
+                                                   "75 mg/mL":  "sod",
                                                    "100 mg/mL":  "U13"
                                                }
                                 },
@@ -801,11 +801,11 @@
                                     "BSA":  50,
                                     "ratio":  4,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -815,11 +815,11 @@
                                     "BSA":  40,
                                     "ratio":  2,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -829,11 +829,11 @@
                                     "BSA":  30,
                                     "ratio":  1.33333333333333,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -843,11 +843,11 @@
                                     "BSA":  20,
                                     "ratio":  1,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -857,11 +857,11 @@
                                     "BSA":  10,
                                     "ratio":  0.8,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -871,11 +871,11 @@
                                     "BSA":  40,
                                     "ratio":  5,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -885,11 +885,11 @@
                                     "BSA":  30,
                                     "ratio":  2.5,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -899,11 +899,11 @@
                                     "BSA":  20,
                                     "ratio":  1.66666666666667,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -913,11 +913,11 @@
                                     "BSA":  10,
                                     "ratio":  1.25,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -927,11 +927,11 @@
                                     "BSA":  30,
                                     "ratio":  6,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -941,11 +941,11 @@
                                     "BSA":  20,
                                     "ratio":  3,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -955,11 +955,11 @@
                                     "BSA":  10,
                                     "ratio":  2,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "7%SOD+93%DIA",
-                                                   "100 mg/mL":  "20%SOD+80%DIA"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "7%sod+93%dia",
+                                                   "100 mg/mL":  "20%sod+80%dia"
                                                }
                                 },
                                 {
@@ -969,11 +969,11 @@
                                     "BSA":  20,
                                     "ratio":  7,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -983,11 +983,11 @@
                                     "BSA":  10,
                                     "ratio":  3.5,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {
@@ -997,11 +997,11 @@
                                     "BSA":  10,
                                     "ratio":  8,
                                     "phases":  {
-                                                   "12.5 mg/mL":  "Sodalite",
-                                                   "25 mg/mL":  "Sodalite",
-                                                   "50 mg/mL":  "Sodalite",
-                                                   "75 mg/mL":  "Sodalite",
-                                                   "100 mg/mL":  "Sodalite"
+                                                   "12.5 mg/mL":  "sod",
+                                                   "25 mg/mL":  "sod",
+                                                   "50 mg/mL":  "sod",
+                                                   "75 mg/mL":  "sod",
+                                                   "100 mg/mL":  "sod"
                                                }
                                 },
                                 {

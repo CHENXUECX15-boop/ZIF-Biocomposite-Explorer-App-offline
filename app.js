@@ -8,6 +8,7 @@ const palette = {
   U13: "#DDB600",
   U12: "#00E45C",
   mixed: "#9933FF",
+  missing: "#4A4A4A",
   other: "#8D735B",
 };
 
@@ -21,6 +22,27 @@ const phaseFamilies = [
   ["mixed", "mixed"],
 ];
 
+const metricModes = [
+  ["Phase", "phase"],
+  ["EE%", "EE"],
+  ["LC%", "LC"],
+];
+
+const metricPalettes = {
+  EE: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
+  LC: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
+};
+
+const valueFilterKeys = ["M", "L", "BSA", "EE", "LC"];
+
+const defaultValueFilters = Object.freeze({
+  M: Object.freeze({ min: 0, max: 100 }),
+  L: Object.freeze({ min: 0, max: 100 }),
+  BSA: Object.freeze({ min: 0, max: 100 }),
+  EE: Object.freeze({ min: 0, max: 100 }),
+  LC: Object.freeze({ min: 0, max: 100 }),
+});
+
 const plot = {
   width: 1320,
   height: 1280,
@@ -32,8 +54,22 @@ const plot = {
   exportScale: 4,
 };
 
+const xrdPlot = {
+  width: 520,
+  height: 330,
+  margin: { top: 22, right: 18, bottom: 42, left: 50 },
+  colors: ["#172124", "#0A7C86", "#D73744"],
+};
+
+const irPlot = {
+  width: 520,
+  height: 260,
+  margin: { top: 18, right: 18, bottom: 42, left: 54 },
+  color: "#EE0000",
+};
+
 const defaultView = {
-  rotationX: 1.18,
+  rotationX: 1.24,
   rotationY: 0,
   rotationZ: 0,
   zoom: 1,
@@ -48,6 +84,15 @@ let state = {
   layerGap: plot.minLayerGap,
   visibleConcentration: "all",
   phaseFilter: "all",
+  visualization: "phase",
+  xrdZoom: 1,
+  xrdPan: 0,
+  irZoom: 1,
+  irPan: 0,
+  valueFilters: valueFilterKeys.reduce(
+    (filters, key) => ({ ...filters, [key]: { ...defaultValueFilters[key] } }),
+    {},
+  ),
   dragMode: "rotate",
   ...defaultView,
 };
@@ -62,6 +107,9 @@ const els = {
   legend: document.getElementById("legend"),
   tabs: Array.from(document.querySelectorAll(".dataset-tab")),
   concentrationFilters: document.getElementById("concentrationFilters"),
+  visualizationFilters: document.getElementById("visualizationFilters"),
+  valueFilters: document.getElementById("valueFilters"),
+  resetValueFilters: document.getElementById("resetValueFilters"),
   phaseFilters: document.getElementById("phaseFilters"),
   modeTabs: Array.from(document.querySelectorAll(".mode-tab")),
   resetView: document.getElementById("resetView"),
@@ -77,7 +125,24 @@ const els = {
   detailL: document.getElementById("detailL"),
   detailBSA: document.getElementById("detailBSA"),
   detailRatio: document.getElementById("detailRatio"),
+  detailEE: document.getElementById("detailEE"),
+  detailLC: document.getElementById("detailLC"),
   phaseRows: document.getElementById("phaseRows"),
+  xrdPlot: document.getElementById("xrdPlot"),
+  xrdLegend: document.getElementById("xrdLegend"),
+  xrdStatus: document.getElementById("xrdStatus"),
+  xrdZoomIn: document.getElementById("xrdZoomIn"),
+  xrdZoomOut: document.getElementById("xrdZoomOut"),
+  xrdDownloadPng: document.getElementById("xrdDownloadPng"),
+  xrdDownloadCsv: document.getElementById("xrdDownloadCsv"),
+  xrdReset: document.getElementById("xrdReset"),
+  irPlot: document.getElementById("irPlot"),
+  irStatus: document.getElementById("irStatus"),
+  irZoomIn: document.getElementById("irZoomIn"),
+  irZoomOut: document.getElementById("irZoomOut"),
+  irDownloadPng: document.getElementById("irDownloadPng"),
+  irDownloadCsv: document.getElementById("irDownloadCsv"),
+  irReset: document.getElementById("irReset"),
 };
 
 function createSvgElement(name, attrs = {}) {
@@ -203,7 +268,7 @@ function normalizePhase(phase) {
   const text = String(phase || "").trim();
   const upper = text.toUpperCase();
 
-  if (!text) return "other";
+  if (!text || text === "-" || upper === "N/A" || upper === "NA") return "missing";
   if (upper.includes("+") || upper.includes("%")) return "mixed";
   if (upper.includes("AMORPHOUS")) return "amorphous";
   if (upper.includes("ZIF-C")) return "ZIF-C";
@@ -216,6 +281,118 @@ function normalizePhase(phase) {
 
 function colorForPhase(phase) {
   return palette[normalizePhase(phase)] || palette.other;
+}
+
+function metricDefinition(metricKey) {
+  return window.METRIC_DATA?.metrics?.[metricKey] || null;
+}
+
+function metricEntry(metricKey, sampleOrNumber, concentration, dataset = state.dataset) {
+  const definition = metricDefinition(metricKey);
+  if (!definition) return null;
+  if (metricKey === "EE" && dataset === "EW") return null;
+
+  const sampleNumber =
+    typeof sampleOrNumber === "object" ? sampleOrNumber.sample : sampleOrNumber;
+  const sampleKey = String(sampleNumber);
+
+  return (
+    definition.datasets?.[dataset]?.[sampleKey]?.[concentration] ||
+    definition.shared?.[sampleKey]?.[concentration] ||
+    null
+  );
+}
+
+function metricValue(metricKey, sampleOrNumber, concentration, dataset = state.dataset) {
+  const entry = metricEntry(metricKey, sampleOrNumber, concentration, dataset);
+  const value = Number(entry?.value);
+  return Number.isFinite(value) ? value : null;
+}
+
+function formatMetricEntry(entry, includeError = true) {
+  const value = Number(entry?.value);
+  if (!Number.isFinite(value)) return "-";
+
+  const base = `${formatNumber(value, 1)}%`;
+  const error = Number(entry?.error);
+  if (includeError && Number.isFinite(error)) {
+    return `${base} +/- ${formatNumber(error, 1)}%`;
+  }
+  return base;
+}
+
+function hexToRgb(hex) {
+  const normalized = hex.replace("#", "");
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function rgbToHex({ r, g, b }) {
+  return `#${[r, g, b]
+    .map((value) => Math.round(value).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function interpolateColor(start, end, amount) {
+  const from = hexToRgb(start);
+  const to = hexToRgb(end);
+  return rgbToHex({
+    r: from.r + (to.r - from.r) * amount,
+    g: from.g + (to.g - from.g) * amount,
+    b: from.b + (to.b - from.b) * amount,
+  });
+}
+
+function colorForMetric(metricKey, value) {
+  const paletteConfig = metricPalettes[metricKey] || metricPalettes.EE;
+  if (value === null || value === undefined || value === "" || !Number.isFinite(Number(value))) {
+    return paletteConfig.missing;
+  }
+  return interpolateColor(paletteConfig.low, paletteConfig.high, clamp(Number(value) / 100, 0, 1));
+}
+
+function colorForSample(sample, concentration, phase) {
+  if (state.visualization === "phase") {
+    return colorForPhase(phase);
+  }
+
+  return colorForMetric(state.visualization, metricValue(state.visualization, sample, concentration));
+}
+
+function valueForFilter(key, sample, concentration) {
+  if (key === "M" || key === "L" || key === "BSA") {
+    const value = Number(sample[key]);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  return metricValue(key, sample, concentration);
+}
+
+function filterRangeIsActive(key) {
+  const range = state.valueFilters[key] || defaultValueFilters[key];
+  return Number(range.min) > defaultValueFilters[key].min || Number(range.max) < defaultValueFilters[key].max;
+}
+
+function valueMatchesFilter(key, sample, concentration) {
+  const range = state.valueFilters[key] || defaultValueFilters[key];
+  if (!filterRangeIsActive(key)) {
+    return true;
+  }
+
+  const value = valueForFilter(key, sample, concentration);
+
+  if (value === null) {
+    return false;
+  }
+
+  return value >= Number(range.min) && value <= Number(range.max);
+}
+
+function valueFiltersMatch(sample, concentration) {
+  return valueFilterKeys.every((key) => valueMatchesFilter(key, sample, concentration));
 }
 
 function activeConcentrations() {
@@ -234,7 +411,9 @@ function phaseMatches(phase) {
 
 function visibleSamplesFor(concentration) {
   const samples = PHASE_DATA.datasets[state.dataset] || [];
-  return samples.filter((sample) => phaseMatches(sample.phases[concentration]));
+  return samples.filter(
+    (sample) => phaseMatches(sample.phases[concentration]) && valueFiltersMatch(sample, concentration),
+  );
 }
 
 function firstVisibleTarget() {
@@ -258,7 +437,8 @@ function syncSelectionToVisibleData() {
   const currentVisible =
     sample &&
     activeConcentrations().some((layer) => layer.concentration === visibleConcentration) &&
-    phaseMatches(sample.phases[visibleConcentration]);
+    phaseMatches(sample.phases[visibleConcentration]) &&
+    valueFiltersMatch(sample, visibleConcentration);
 
   if (currentVisible) {
     state = {
@@ -388,26 +568,59 @@ function lineBetween(group, a, b, className = "layer-grid") {
 }
 
 function renderLegend() {
-  els.legend.replaceChildren(
-    ...phaseFamilies.map(([label, key]) => {
-      const item = document.createElement("span");
-      item.className = "legend-item";
+  if (state.visualization === "phase") {
+    els.legend.replaceChildren(
+      ...phaseFamilies.map(([label, key]) => {
+        const item = document.createElement("span");
+        item.className = "legend-item";
 
-      const swatch = document.createElement("span");
-      swatch.className = "legend-swatch";
-      swatch.style.background = palette[key];
+        const swatch = document.createElement("span");
+        swatch.className = "legend-swatch";
+        swatch.style.background = palette[key];
 
-      const text = document.createElement("strong");
-      text.textContent = label;
+        const text = document.createElement("strong");
+        text.textContent = label;
 
-      item.append(swatch, text);
-      return item;
-    }),
-  );
+        item.append(swatch, text);
+        return item;
+      }),
+    );
+    return;
+  }
+
+  const metricKey = state.visualization;
+  const definition = metricDefinition(metricKey);
+  const paletteConfig = metricPalettes[metricKey] || metricPalettes.EE;
+  const legend = document.createElement("span");
+  legend.className = "metric-legend";
+
+  const label = document.createElement("strong");
+  label.textContent = definition?.label || metricKey;
+
+  const low = document.createElement("span");
+  low.textContent = "0%";
+
+  const scale = document.createElement("span");
+  scale.className = "metric-scale";
+  scale.style.background = `linear-gradient(90deg, ${paletteConfig.low}, ${paletteConfig.high})`;
+
+  const high = document.createElement("span");
+  high.textContent = "100%";
+
+  const missing = document.createElement("span");
+  missing.className = "metric-missing";
+  missing.style.background = paletteConfig.missing;
+  missing.style.borderColor = paletteConfig.missing;
+
+  const missingText = document.createElement("span");
+  missingText.textContent = "No data";
+
+  legend.append(label, low, scale, high, missing, missingText);
+  els.legend.replaceChildren(legend);
 }
 
 function renderGrid(group, index, fit) {
-  for (let value = 10; value < 100; value += 10) {
+  for (let value = 20; value < 100; value += 20) {
     lineBetween(
       group,
       screenFor(makePoint(100 - value, 0, value), index, fit),
@@ -458,7 +671,7 @@ function renderAxisLabels(group, index, fit) {
     });
   });
 
-  for (let value = 10; value <= 100; value += 10) {
+  for (let value = 20; value <= 100; value += 20) {
     textAt(
       group,
       value,
@@ -487,7 +700,11 @@ function renderSamples(group, concentration, index, fit, samples) {
   samples.forEach((sample) => {
     const point = screenFor(localForComposition(sample), index, fit);
     const phase = sample.phases[concentration];
-    if (!phaseMatches(phase)) {
+    const metricText =
+      state.visualization === "phase"
+        ? ""
+        : `, ${state.visualization} ${formatMetricEntry(metricEntry(state.visualization, sample, concentration), false)}`;
+    if (!phaseMatches(phase) || !valueFiltersMatch(sample, concentration)) {
       return;
     }
     hitTargets.push({
@@ -503,7 +720,7 @@ function renderSamples(group, concentration, index, fit, samples) {
       role: "button",
       "data-sample": sample.sample,
       "data-concentration": concentration,
-      "aria-label": `Sample ${sample.sample}, ${formatConcentrationPlain(concentration)}, ${displayPhasePlain(phase)}`,
+      "aria-label": `Sample ${sample.sample}, ${formatConcentrationPlain(concentration)}, ${displayPhasePlain(phase)}${metricText}`,
     });
 
     sampleGroup.append(
@@ -524,7 +741,7 @@ function renderSamples(group, concentration, index, fit, samples) {
         cx: point.x,
         cy: point.y,
         r: scaledSampleSize(12.5),
-        fill: colorForPhase(phase),
+        fill: colorForSample(sample, concentration, phase),
       }),
       createSvgElement("text", {
         class: "sample-number",
@@ -536,7 +753,7 @@ function renderSamples(group, concentration, index, fit, samples) {
     sampleGroup.lastElementChild.textContent = sample.sample;
 
     const title = createSvgElement("title");
-    title.textContent = `Sample ${sample.sample} | ${formatConcentrationPlain(concentration)} | ${displayPhasePlain(phase)}`;
+    title.textContent = `Sample ${sample.sample} | ${formatConcentrationPlain(concentration)} | ${displayPhasePlain(phase)}${metricText.replace(", ", " | ")}`;
     sampleGroup.append(title);
 
     sampleGroup.addEventListener("keydown", (event) => {
@@ -592,6 +809,50 @@ function renderLayer(concentration, index, fit, samples) {
   return group;
 }
 
+function renderPlotBackground() {
+  const group = createSvgElement("g", {
+    class: "plot-grid-bg",
+    "aria-hidden": "true",
+  });
+  const step = 38;
+
+  group.append(
+    createSvgElement("rect", {
+      class: "plot-grid-fill",
+      x: 0,
+      y: 0,
+      width: plot.width,
+      height: plot.height,
+    }),
+  );
+
+  for (let x = 0; x <= plot.width; x += step) {
+    group.append(
+      createSvgElement("line", {
+        class: "plot-grid-line",
+        x1: x,
+        y1: 0,
+        x2: x,
+        y2: plot.height,
+      }),
+    );
+  }
+
+  for (let y = 0; y <= plot.height; y += step) {
+    group.append(
+      createSvgElement("line", {
+        class: "plot-grid-line",
+        x1: 0,
+        y1: y,
+        x2: plot.width,
+        y2: y,
+      }),
+    );
+  }
+
+  return group;
+}
+
 function renderPlot() {
   const samples = PHASE_DATA.datasets[state.dataset] || [];
   const fit = projectedBounds();
@@ -601,7 +862,7 @@ function renderPlot() {
     .sort((a, b) => Number(a.dataset.depth) - Number(b.dataset.depth));
 
   els.svg.setAttribute("viewBox", `0 0 ${plot.width} ${plot.height}`);
-  els.svg.replaceChildren(...layers);
+  els.svg.replaceChildren(...(isExporting ? [] : [renderPlotBackground()]), ...layers);
   updateHighlights();
 }
 
@@ -630,11 +891,638 @@ function updateHighlights() {
   });
 }
 
+function xrdTriplicatesFor(sample, concentration) {
+  const dataset = window.XRD_DATA?.datasets?.[state.dataset];
+  return dataset?.[String(sample.sample)]?.[concentration] || [];
+}
+
+function createXrdText(text, x, y, className, attrs = {}) {
+  const node = createSvgElement("text", {
+    class: className,
+    x,
+    y,
+    ...attrs,
+  });
+  node.textContent = text;
+  return node;
+}
+
+function createSvgSupText(parts, x, y, className, attrs = {}) {
+  const node = createSvgElement("text", {
+    class: className,
+    x,
+    y,
+    ...attrs,
+  });
+  parts.forEach((part) => {
+    const tspan = createSvgElement("tspan");
+    tspan.textContent = part.text;
+    if (part.sup) {
+      tspan.setAttribute("baseline-shift", "super");
+      tspan.setAttribute("font-size", "70%");
+    }
+    node.append(tspan);
+  });
+  return node;
+}
+
+function spectrumRange(xMeta, zoom = 1, pan = 0) {
+  const start = Number(xMeta?.start) || 0;
+  const step = Number(xMeta?.step) || 1;
+  const count = Math.max(1, Number(xMeta?.count) || 1);
+  const end = start + step * (count - 1);
+  const rawMin = Math.min(start, end);
+  const rawMax = Math.max(start, end);
+  const fullSpan = Math.max(1, rawMax - rawMin);
+  const visibleSpan = fullSpan / clamp(zoom, 1, 8);
+  const maxPan = Math.max(0, (fullSpan - visibleSpan) / 2);
+  const center = (rawMin + rawMax) / 2 + clamp(pan, -maxPan, maxPan);
+  const min = clamp(center - visibleSpan / 2, rawMin, rawMax);
+  const max = clamp(center + visibleSpan / 2, rawMin, rawMax);
+  return { min, max, rawMin, rawMax, descending: step < 0 };
+}
+
+function spectrumPanLimit(xMeta, zoom = 1) {
+  const start = Number(xMeta?.start) || 0;
+  const step = Number(xMeta?.step) || 1;
+  const count = Math.max(1, Number(xMeta?.count) || 1);
+  const end = start + step * (count - 1);
+  const fullSpan = Math.max(1, Math.abs(end - start));
+  const visibleSpan = fullSpan / clamp(zoom, 1, 8);
+  return Math.max(0, (fullSpan - visibleSpan) / 2);
+}
+
+function spectrumX(value, geometry, range, descending = false) {
+  const span = Math.max(1, range.max - range.min);
+  const ratio = descending ? (range.max - value) / span : (value - range.min) / span;
+  return geometry.left + ratio * geometry.width;
+}
+
+function axisTicks(range, preferredTicks, decimals = 0) {
+  const ticks = preferredTicks.filter((tick) => tick >= range.min && tick <= range.max);
+  if (ticks.length >= 2) return ticks;
+
+  const generated = [range.min, (range.min + range.max) / 2, range.max];
+  return generated.map((tick) => Number(tick.toFixed(decimals)));
+}
+
+function formatAxisTick(value) {
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(1)));
+}
+
+function xrdStackGeometry(geometry, index, count) {
+  const gap = 12;
+  const bandHeight = (geometry.height - gap * Math.max(0, count - 1)) / Math.max(1, count);
+  const top = geometry.top + (count - 1 - index) * (bandHeight + gap);
+  return {
+    top,
+    baseline: top + bandHeight,
+    height: bandHeight,
+  };
+}
+
+function xrdPathFor(values, geometry, xMeta, stackIndex, stackCount, range) {
+  const maxIndex = Math.max(1, values.length - 1);
+  const xMin = Number(xMeta?.start) || 5;
+  const xStep = Number(xMeta?.step) || 0.02;
+  const yRange = 100;
+  const stack = xrdStackGeometry(geometry, stackIndex, stackCount);
+
+  return values
+    .map((value, index) => {
+      const theta = xMin + xStep * index;
+      if (theta < range.min || theta > range.max) return null;
+      const x = spectrumX(theta, geometry, range);
+      const y = stack.baseline - (clamp(Number(value), 0, 100) / yRange) * stack.height;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .filter(Boolean)
+    .join(" ");
+}
+
+function renderXrdPlot(sample) {
+  if (!els.xrdPlot || !els.xrdLegend || !els.xrdStatus) return;
+
+  const xrdData = window.XRD_DATA;
+  const triplicates = xrdTriplicatesFor(sample, state.concentration);
+  const available = triplicates
+    .map((values, index) => ({ values, index }))
+    .filter((item) => Array.isArray(item.values) && item.values.length > 1);
+
+  const geometry = {
+    left: xrdPlot.margin.left,
+    top: xrdPlot.margin.top,
+    width: xrdPlot.width - xrdPlot.margin.left - xrdPlot.margin.right,
+    height: xrdPlot.height - xrdPlot.margin.top - xrdPlot.margin.bottom,
+  };
+  const xRange = spectrumRange(xrdData?.x, state.xrdZoom, state.xrdPan);
+
+  const nodes = [
+    createSvgElement("rect", {
+      class: "xrd-plot-bg",
+      x: 0,
+      y: 0,
+      width: xrdPlot.width,
+      height: xrdPlot.height,
+      rx: 8,
+    }),
+  ];
+
+  [0, 1, 2].forEach((index) => {
+    const stack = xrdStackGeometry(geometry, index, 3);
+    nodes.push(
+      createSvgElement("line", {
+        class: "xrd-grid-line",
+        x1: geometry.left,
+        y1: stack.baseline,
+        x2: geometry.left + geometry.width,
+        y2: stack.baseline,
+      }),
+      createXrdText(`${index + 1}`, geometry.left - 10, stack.baseline - 4, "xrd-tick-label", {
+        "text-anchor": "end",
+      }),
+    );
+  });
+
+  axisTicks(xRange, [5, 10, 15, 20], 1).forEach((tick) => {
+    const x = spectrumX(tick, geometry, xRange);
+    nodes.push(
+      createSvgElement("line", {
+        class: "xrd-grid-line",
+        x1: x,
+        y1: geometry.top,
+        x2: x,
+        y2: geometry.top + geometry.height,
+      }),
+      createXrdText(formatAxisTick(tick), x, geometry.top + geometry.height + 20, "xrd-tick-label", {
+        "text-anchor": "middle",
+      }),
+    );
+  });
+
+  nodes.push(
+    createSvgElement("line", {
+      class: "xrd-axis-line",
+      x1: geometry.left,
+      y1: geometry.top + geometry.height,
+      x2: geometry.left + geometry.width,
+      y2: geometry.top + geometry.height,
+    }),
+    createSvgElement("line", {
+      class: "xrd-axis-line",
+      x1: geometry.left,
+      y1: geometry.top,
+      x2: geometry.left,
+      y2: geometry.top + geometry.height,
+    }),
+    createSvgElement("line", {
+      class: "xrd-axis-line",
+      x1: geometry.left,
+      y1: geometry.top,
+      x2: geometry.left + geometry.width,
+      y2: geometry.top,
+    }),
+    createSvgElement("line", {
+      class: "xrd-axis-line",
+      x1: geometry.left + geometry.width,
+      y1: geometry.top,
+      x2: geometry.left + geometry.width,
+      y2: geometry.top + geometry.height,
+    }),
+    createXrdText("2theta [degree]", geometry.left + geometry.width / 2, xrdPlot.height - 8, "xrd-axis-title", {
+      "text-anchor": "middle",
+    }),
+    createXrdText("Normalized intensity [a.u.]", 15, geometry.top + geometry.height / 2, "xrd-axis-title", {
+      "text-anchor": "middle",
+      transform: `rotate(-90 15 ${geometry.top + geometry.height / 2})`,
+    }),
+  );
+
+  if (!available.length) {
+    nodes.push(
+      createXrdText("No XRD data", xrdPlot.width / 2, xrdPlot.height / 2, "xrd-empty", {
+        "text-anchor": "middle",
+      }),
+    );
+  } else {
+    available.forEach(({ values, index }) => {
+      nodes.push(
+        createSvgElement("polyline", {
+          class: "xrd-pattern-line",
+          points: xrdPathFor(values, geometry, xrdData?.x, index, 3, xRange),
+          stroke: xrdPlot.colors[index] || xrdPlot.colors[0],
+        }),
+      );
+    });
+  }
+
+  els.xrdPlot.setAttribute("viewBox", `0 0 ${xrdPlot.width} ${xrdPlot.height}`);
+  els.xrdPlot.replaceChildren(...nodes);
+  els.xrdStatus.textContent = `${available.length}/3 triplicates`;
+  if (els.xrdZoomOut) els.xrdZoomOut.disabled = state.xrdZoom <= 1;
+  if (els.xrdZoomIn) els.xrdZoomIn.disabled = state.xrdZoom >= 8;
+  if (els.xrdReset) els.xrdReset.disabled = state.xrdZoom <= 1 && Math.abs(state.xrdPan) < 0.0001;
+
+  const legendItems = (xrdData?.syntheses || ["First synthesis", "Second synthesis", "Third synthesis"]).map(
+    (label, index) => {
+      const item = document.createElement("span");
+      item.className = "xrd-legend-item";
+
+      const swatch = document.createElement("span");
+      swatch.className = "xrd-swatch";
+      swatch.style.background = xrdPlot.colors[index] || xrdPlot.colors[0];
+
+      const text = document.createElement("span");
+      text.textContent = label;
+      if (!Array.isArray(triplicates[index])) {
+        item.classList.add("is-missing");
+        text.textContent = `${label} (missing)`;
+      }
+
+      item.append(swatch, text);
+      return item;
+    },
+  );
+
+  els.xrdLegend.replaceChildren(...legendItems);
+}
+
+function irSpectrumFor(sample, concentration) {
+  const dataset = window.IR_DATA?.datasets?.[state.dataset];
+  return dataset?.[String(sample.sample)]?.[concentration] || null;
+}
+
+function irXFor(wavenumber, geometry, range) {
+  return spectrumX(wavenumber, geometry, range, true);
+}
+
+function irPathFor(values, geometry, xMeta, range) {
+  const start = Number(xMeta?.start) || 4000;
+  const step = Number(xMeta?.step) || -4;
+
+  return values
+    .map((value, index) => {
+      const wavenumber = start + step * index;
+      if (wavenumber < range.min || wavenumber > range.max) return null;
+      const x = irXFor(wavenumber, geometry, range);
+      const y = geometry.top + geometry.height - (clamp(Number(value), 0, 100) / 100) * geometry.height;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .filter(Boolean)
+    .join(" ");
+}
+
+function renderIrPlot(sample) {
+  if (!els.irPlot || !els.irStatus) return;
+
+  const irData = window.IR_DATA;
+  const spectrum = irSpectrumFor(sample, state.concentration);
+  const hasSpectrum = Array.isArray(spectrum) && spectrum.length > 1;
+  const geometry = {
+    left: irPlot.margin.left,
+    top: irPlot.margin.top,
+    width: irPlot.width - irPlot.margin.left - irPlot.margin.right,
+    height: irPlot.height - irPlot.margin.top - irPlot.margin.bottom,
+  };
+  const xRange = spectrumRange(irData?.x, state.irZoom, state.irPan);
+
+  const nodes = [
+    createSvgElement("rect", {
+      class: "xrd-plot-bg",
+      x: 0,
+      y: 0,
+      width: irPlot.width,
+      height: irPlot.height,
+      rx: 8,
+    }),
+  ];
+
+  [0, 50, 100].forEach((tick) => {
+    const y = geometry.top + geometry.height - (tick / 100) * geometry.height;
+    nodes.push(
+      createSvgElement("line", {
+        class: "xrd-grid-line",
+        x1: geometry.left,
+        y1: y,
+        x2: geometry.left + geometry.width,
+        y2: y,
+      }),
+      createXrdText(tick, geometry.left - 10, y + 4, "xrd-tick-label", {
+        "text-anchor": "end",
+      }),
+    );
+  });
+
+  axisTicks(xRange, [4000, 3000, 2000, 1000, 400], 0).forEach((tick) => {
+    const x = irXFor(tick, geometry, xRange);
+    if (x < geometry.left - 1 || x > geometry.left + geometry.width + 1) return;
+    nodes.push(
+      createSvgElement("line", {
+        class: "xrd-grid-line",
+        x1: x,
+        y1: geometry.top,
+        x2: x,
+        y2: geometry.top + geometry.height,
+      }),
+      createXrdText(formatAxisTick(tick), x, geometry.top + geometry.height + 20, "xrd-tick-label", {
+        "text-anchor": "middle",
+      }),
+    );
+  });
+
+  nodes.push(
+    createSvgElement("line", {
+      class: "xrd-axis-line",
+      x1: geometry.left,
+      y1: geometry.top + geometry.height,
+      x2: geometry.left + geometry.width,
+      y2: geometry.top + geometry.height,
+    }),
+    createSvgElement("line", {
+      class: "xrd-axis-line",
+      x1: geometry.left,
+      y1: geometry.top,
+      x2: geometry.left,
+      y2: geometry.top + geometry.height,
+    }),
+    createSvgElement("line", {
+      class: "xrd-axis-line",
+      x1: geometry.left,
+      y1: geometry.top,
+      x2: geometry.left + geometry.width,
+      y2: geometry.top,
+    }),
+    createSvgElement("line", {
+      class: "xrd-axis-line",
+      x1: geometry.left + geometry.width,
+      y1: geometry.top,
+      x2: geometry.left + geometry.width,
+      y2: geometry.top + geometry.height,
+    }),
+    createSvgSupText(
+      [
+        { text: "Wavelength [cm" },
+        { text: "-1", sup: true },
+        { text: "]" },
+      ],
+      geometry.left + geometry.width / 2,
+      irPlot.height - 8,
+      "xrd-axis-title",
+      {
+        "text-anchor": "middle",
+      },
+    ),
+    createXrdText("Normalized absorbance [a.u.]", 16, geometry.top + geometry.height / 2, "xrd-axis-title", {
+      "text-anchor": "middle",
+      transform: `rotate(-90 16 ${geometry.top + geometry.height / 2})`,
+    }),
+  );
+
+  if (!hasSpectrum) {
+    nodes.push(
+      createXrdText("No ATR-IR data", irPlot.width / 2, irPlot.height / 2, "xrd-empty", {
+        "text-anchor": "middle",
+      }),
+    );
+  } else {
+    nodes.push(
+      createSvgElement("polyline", {
+        class: "ir-pattern-line",
+        points: irPathFor(spectrum, geometry, irData?.x, xRange),
+        stroke: irPlot.color,
+      }),
+    );
+  }
+
+  els.irPlot.setAttribute("viewBox", `0 0 ${irPlot.width} ${irPlot.height}`);
+  els.irPlot.replaceChildren(...nodes);
+  els.irStatus.textContent = hasSpectrum ? "1/1 spectrum" : "No data";
+  if (els.irZoomOut) els.irZoomOut.disabled = state.irZoom <= 1;
+  if (els.irZoomIn) els.irZoomIn.disabled = state.irZoom >= 8;
+  if (els.irReset) els.irReset.disabled = state.irZoom <= 1 && Math.abs(state.irPan) < 0.0001;
+}
+
+function csvValue(value) {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "";
+  const text = String(value);
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function xValueAt(index, xMeta, fallbackStart, fallbackStep) {
+  const start = Number(xMeta?.start) || fallbackStart;
+  const step = Number(xMeta?.step) || fallbackStep;
+  return Number((start + step * index).toFixed(5));
+}
+
+function downloadCsv(rows, filename) {
+  const csv = rows.map((row) => row.map(csvValue).join(",")).join("\r\n");
+  downloadBlob(new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" }), filename);
+}
+
+function spectrumFilePrefix(kind) {
+  const fileSafeConcentration = formatConcentrationFile(state.concentration);
+  return `${kind}-${state.dataset}-sample-${state.sample}-${fileSafeConcentration}`;
+}
+
+function downloadXrdCsv() {
+  const sample = currentSample();
+  if (!sample) return;
+
+  const xrdData = window.XRD_DATA;
+  const triplicates = xrdTriplicatesFor(sample, state.concentration);
+  const labels = xrdData?.syntheses || ["First synthesis", "Second synthesis", "Third synthesis"];
+  const maxLength = Math.max(0, ...triplicates.map((values) => (Array.isArray(values) ? values.length : 0)));
+  const rows = [["2theta [degree]", ...labels.map((label) => `${label} normalized intensity [a.u.]`)]];
+
+  for (let index = 0; index < maxLength; index += 1) {
+    rows.push([
+      xValueAt(index, xrdData?.x, 5, 0.02),
+      ...triplicates.map((values) => (Array.isArray(values) ? values[index] : "")),
+    ]);
+  }
+
+  downloadCsv(rows, `${spectrumFilePrefix("PXRD")}.csv`);
+}
+
+function downloadIrCsv() {
+  const sample = currentSample();
+  if (!sample) return;
+
+  const irData = window.IR_DATA;
+  const spectrum = irSpectrumFor(sample, state.concentration);
+  const rows = [["Wavelength [cm^-1]", "Normalized absorbance [a.u.]"]];
+
+  if (Array.isArray(spectrum)) {
+    spectrum.forEach((value, index) => {
+      rows.push([xValueAt(index, irData?.x, 4000, -4), value]);
+    });
+  }
+
+  downloadCsv(rows, `${spectrumFilePrefix("ATR-IR")}.csv`);
+}
+
+function spectrumExportStyles() {
+  return `
+    svg { background: #ffffff; }
+    text { font-family: Arial, sans-serif; letter-spacing: 0; }
+    .xrd-plot-bg { fill: #ffffff; }
+    .xrd-grid-line { stroke: rgba(29, 37, 40, 0.12); stroke-width: 1; }
+    .xrd-axis-line { stroke: #172124; stroke-width: 1.6; }
+    .xrd-pattern-line { fill: none; stroke-width: 1.9; stroke-linejoin: round; stroke-linecap: round; }
+    .ir-pattern-line { fill: none; stroke: ${irPlot.color}; stroke-width: 1.9; stroke-linejoin: round; stroke-linecap: round; }
+    .xrd-tick-label, .xrd-axis-title { fill: #172124; font-size: 12px; font-weight: 720; }
+    .xrd-axis-title { font-size: 13px; font-weight: 820; }
+    .xrd-empty { fill: #637074; font-size: 18px; font-weight: 780; }
+  `;
+}
+
+function cloneSpectrumSvg(svg, width, height) {
+  const clone = svg.cloneNode(true);
+  clone.setAttribute("xmlns", SVG_NS);
+  clone.setAttribute("width", width);
+  clone.setAttribute("height", height);
+
+  const background = createSvgElement("rect", {
+    x: 0,
+    y: 0,
+    width,
+    height,
+    fill: "#ffffff",
+  });
+  const defs = createSvgElement("defs");
+  const style = createSvgElement("style");
+  style.textContent = spectrumExportStyles();
+  defs.append(style);
+  clone.prepend(background);
+  clone.prepend(defs);
+  return clone;
+}
+
+function downloadSpectrumPng(kind) {
+  const isXrd = kind === "xrd";
+  const svg = isXrd ? els.xrdPlot : els.irPlot;
+  const width = isXrd ? xrdPlot.width : irPlot.width;
+  const height = isXrd ? xrdPlot.height : irPlot.height;
+  if (!svg) return;
+
+  const clone = cloneSpectrumSvg(svg, width, height);
+  const svgText = new XMLSerializer().serializeToString(clone);
+  const svgBlob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+  const image = new Image();
+  image.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = width * plot.exportScale;
+    canvas.height = height * plot.exportScale;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(
+      async (blob) => {
+        if (blob) {
+          const dpiBlob = await pngWithDpi(blob, 300);
+          downloadBlob(dpiBlob, `${spectrumFilePrefix(isXrd ? "PXRD" : "ATR-IR")}.png`);
+        }
+        URL.revokeObjectURL(url);
+      },
+      "image/png",
+      1,
+    );
+  };
+  image.onerror = () => URL.revokeObjectURL(url);
+  image.src = url;
+}
+
+function setSpectrumZoom(kind, nextZoom) {
+  const key = kind === "xrd" ? "xrdZoom" : "irZoom";
+  const panKey = kind === "xrd" ? "xrdPan" : "irPan";
+  const xMeta = kind === "xrd" ? window.XRD_DATA?.x : window.IR_DATA?.x;
+  const zoom = clamp(nextZoom, 1, 8);
+  const panLimit = spectrumPanLimit(xMeta, zoom);
+  state = {
+    ...state,
+    [key]: zoom,
+    [panKey]: zoom <= 1 ? 0 : clamp(state[panKey], -panLimit, panLimit),
+  };
+
+  const sample = currentSample();
+  if (!sample) return;
+  if (kind === "xrd") {
+    renderXrdPlot(sample);
+  } else {
+    renderIrPlot(sample);
+  }
+}
+
+function resetSpectrumView(kind) {
+  const zoomKey = kind === "xrd" ? "xrdZoom" : "irZoom";
+  const panKey = kind === "xrd" ? "xrdPan" : "irPan";
+  state = {
+    ...state,
+    [zoomKey]: 1,
+    [panKey]: 0,
+  };
+
+  const sample = currentSample();
+  if (!sample) return;
+  if (kind === "xrd") {
+    renderXrdPlot(sample);
+  } else {
+    renderIrPlot(sample);
+  }
+}
+
+function setSpectrumPan(kind, nextPan) {
+  const panKey = kind === "xrd" ? "xrdPan" : "irPan";
+  const zoom = kind === "xrd" ? state.xrdZoom : state.irZoom;
+  const xMeta = kind === "xrd" ? window.XRD_DATA?.x : window.IR_DATA?.x;
+  const panLimit = spectrumPanLimit(xMeta, zoom);
+
+  state = {
+    ...state,
+    [panKey]: clamp(nextPan, -panLimit, panLimit),
+  };
+
+  const sample = currentSample();
+  if (!sample) return;
+  if (kind === "xrd") {
+    renderXrdPlot(sample);
+  } else {
+    renderIrPlot(sample);
+  }
+}
+
+function createMetricChip(metricKey, sample, concentration) {
+  const chip = document.createElement("span");
+  chip.className = "metric-value";
+
+  const entry = metricEntry(metricKey, sample, concentration);
+  const value = Number(entry?.value);
+  chip.textContent = formatMetricEntry(entry, false);
+
+  if (Number.isFinite(value)) {
+    const color = colorForMetric(metricKey, value);
+    chip.style.background = `${color}24`;
+    chip.style.borderColor = `${color}88`;
+  } else {
+    const color = metricPalettes[metricKey]?.missing || "#4A4A4A";
+    chip.style.background = color;
+    chip.style.borderColor = color;
+    chip.style.color = "#ffffff";
+  }
+
+  return chip;
+}
+
 function updateDetail() {
   const sample = currentSample();
   if (!sample) return;
 
   const phase = sample.phases[state.concentration] || "-";
+  const eeEntry = metricEntry("EE", sample, state.concentration);
+  const lcEntry = metricEntry("LC", sample, state.concentration);
 
   els.detailDataset.textContent = state.dataset;
   els.detailTitle.textContent = `Sample ${sample.sample}`;
@@ -644,10 +1532,14 @@ function updateDetail() {
   els.detailL.textContent = `${formatNumber(sample.L)}%`;
   els.detailBSA.textContent = `${formatNumber(sample.BSA)}%`;
   els.detailRatio.textContent = formatNumber(sample.ratio);
+  els.detailEE.textContent = formatMetricEntry(eeEntry);
+  els.detailLC.textContent = formatMetricEntry(lcEntry);
   els.selectedPhase.style.color = colorForPhase(phase);
+  renderXrdPlot(sample);
+  renderIrPlot(sample);
 
   els.phaseRows.replaceChildren(
-    ...PHASE_DATA.concentrations.map((concentration) => {
+    ...[...PHASE_DATA.concentrations].reverse().map((concentration) => {
       const row = document.createElement("tr");
       row.className = "phase-row";
       row.classList.toggle("is-active", concentration === state.concentration);
@@ -659,13 +1551,22 @@ function updateDetail() {
       const phaseCell = document.createElement("td");
       const chip = document.createElement("span");
       const rowPhase = sample.phases[concentration] || "-";
+      const rowPhaseType = normalizePhase(rowPhase);
+      const rowPhaseColor = colorForPhase(rowPhase);
       chip.className = "phase-chip";
-      chip.style.background = `${colorForPhase(rowPhase)}26`;
-      chip.style.borderColor = `${colorForPhase(rowPhase)}9A`;
+      chip.style.background = rowPhaseType === "missing" ? rowPhaseColor : `${rowPhaseColor}26`;
+      chip.style.borderColor = rowPhaseType === "missing" ? rowPhaseColor : `${rowPhaseColor}9A`;
+      chip.style.color = rowPhaseType === "missing" ? "#ffffff" : "";
       renderPhaseText(chip, rowPhase);
       phaseCell.append(chip);
 
-      row.append(concentrationCell, phaseCell);
+      const eeCell = document.createElement("td");
+      eeCell.append(createMetricChip("EE", sample, concentration));
+
+      const lcCell = document.createElement("td");
+      lcCell.append(createMetricChip("LC", sample, concentration));
+
+      row.append(concentrationCell, phaseCell, eeCell, lcCell);
       return row;
     }),
   );
@@ -725,7 +1626,8 @@ function setZoom(nextZoom) {
 function setView(view) {
   const views = {
     z: { rotationX: 0, rotationY: 0, rotationZ: 0 },
-    y: { rotationX: 1.18, rotationY: 0, rotationZ: 0 },
+    l: { rotationX: 0.07, rotationY: 0, rotationZ: 0 },
+    y: { rotationX: 1.24, rotationY: 0, rotationZ: 0 },
     x: { rotationX: 1.18, rotationY: -1.45, rotationZ: 0 },
   };
 
@@ -790,10 +1692,53 @@ function updateControlStates() {
   els.phaseFilters.querySelectorAll("[data-phase-filter]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.phaseFilter === state.phaseFilter);
   });
+  els.visualizationFilters.querySelectorAll("[data-visualization]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.visualization === state.visualization);
+  });
+  els.valueFilters.querySelectorAll("[data-filter-key][data-range-bound]").forEach((input) => {
+    const range = state.valueFilters[input.dataset.filterKey];
+    input.value = range[input.dataset.rangeBound];
+  });
   els.modeTabs.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.dragMode === state.dragMode);
   });
   els.plotFrame.classList.toggle("is-pan-mode", state.dragMode === "pan");
+}
+
+function resetValueFilters() {
+  state = {
+    ...state,
+    valueFilters: valueFilterKeys.reduce(
+      (filters, key) => ({ ...filters, [key]: { ...defaultValueFilters[key] } }),
+      {},
+    ),
+  };
+}
+
+function updateValueFilter(input) {
+  const key = input.dataset.filterKey;
+  const bound = input.dataset.rangeBound;
+  if (!valueFilterKeys.includes(key) || (bound !== "min" && bound !== "max")) return;
+
+  const fallback = defaultValueFilters[key][bound];
+  const value = clamp(input.value === "" ? fallback : Number(input.value), 0, 100);
+  const current = state.valueFilters[key] || defaultValueFilters[key];
+  const nextRange = {
+    ...current,
+    [bound]: value,
+  };
+
+  if (nextRange.min > nextRange.max) {
+    nextRange[bound === "min" ? "max" : "min"] = value;
+  }
+
+  state = {
+    ...state,
+    valueFilters: {
+      ...state.valueFilters,
+      [key]: nextRange,
+    },
+  };
 }
 
 function bindRotation() {
@@ -866,6 +1811,52 @@ function bindRotation() {
     },
     { passive: false },
   );
+}
+
+function bindSpectrumPan(svg, kind) {
+  if (!svg) return;
+
+  let spectrumDrag = null;
+  svg.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+
+    const zoom = kind === "xrd" ? state.xrdZoom : state.irZoom;
+    const pan = kind === "xrd" ? state.xrdPan : state.irPan;
+    const xMeta = kind === "xrd" ? window.XRD_DATA?.x : window.IR_DATA?.x;
+    const bounds = svg.getBoundingClientRect();
+    const range = spectrumRange(xMeta, zoom, pan);
+
+    spectrumDrag = {
+      startX: event.clientX,
+      startPan: pan,
+      range,
+      width: Math.max(1, bounds.width),
+    };
+    svg.setPointerCapture(event.pointerId);
+    svg.classList.add("is-spectrum-dragging");
+  });
+
+  svg.addEventListener("pointermove", (event) => {
+    if (!spectrumDrag) return;
+    const dx = event.clientX - spectrumDrag.startX;
+    const visibleSpan = Math.max(1, spectrumDrag.range.max - spectrumDrag.range.min);
+    const direction = spectrumDrag.range.descending ? 1 : -1;
+    const nextPan = spectrumDrag.startPan + direction * (dx / spectrumDrag.width) * visibleSpan;
+    setSpectrumPan(kind, nextPan);
+  });
+
+  const stopSpectrumDrag = (event) => {
+    if (!spectrumDrag) return;
+    spectrumDrag = null;
+    svg.classList.remove("is-spectrum-dragging");
+    if (event.pointerId !== undefined && svg.hasPointerCapture(event.pointerId)) {
+      svg.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  svg.addEventListener("pointerup", stopSpectrumDrag);
+  svg.addEventListener("pointercancel", stopSpectrumDrag);
 }
 
 function exportStyles() {
@@ -1111,6 +2102,39 @@ function bindEvents() {
     updateDetail();
   });
 
+  els.visualizationFilters.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-visualization]");
+    if (!button) return;
+
+    state = {
+      ...state,
+      visualization: button.dataset.visualization,
+    };
+    renderLegend();
+    updateControlStates();
+    renderPlot();
+    updateDetail();
+  });
+
+  els.valueFilters.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-filter-key][data-range-bound]");
+    if (!input) return;
+
+    updateValueFilter(input);
+    syncSelectionToVisibleData();
+    updateControlStates();
+    renderPlot();
+    updateDetail();
+  });
+
+  els.resetValueFilters.addEventListener("click", () => {
+    resetValueFilters();
+    syncSelectionToVisibleData();
+    updateControlStates();
+    renderPlot();
+    updateDetail();
+  });
+
   els.modeTabs.forEach((button) => {
     button.addEventListener("click", () => {
       state = {
@@ -1137,7 +2161,19 @@ function bindEvents() {
   });
 
   els.downloadPng.addEventListener("click", downloadPng);
+  els.xrdZoomIn?.addEventListener("click", () => setSpectrumZoom("xrd", state.xrdZoom * 1.4));
+  els.xrdZoomOut?.addEventListener("click", () => setSpectrumZoom("xrd", state.xrdZoom / 1.4));
+  els.irZoomIn?.addEventListener("click", () => setSpectrumZoom("ir", state.irZoom * 1.4));
+  els.irZoomOut?.addEventListener("click", () => setSpectrumZoom("ir", state.irZoom / 1.4));
+  els.xrdReset?.addEventListener("click", () => resetSpectrumView("xrd"));
+  els.irReset?.addEventListener("click", () => resetSpectrumView("ir"));
+  els.xrdDownloadCsv?.addEventListener("click", downloadXrdCsv);
+  els.irDownloadCsv?.addEventListener("click", downloadIrCsv);
+  els.xrdDownloadPng?.addEventListener("click", () => downloadSpectrumPng("xrd"));
+  els.irDownloadPng?.addEventListener("click", () => downloadSpectrumPng("ir"));
   bindRotation();
+  bindSpectrumPan(els.xrdPlot, "xrd");
+  bindSpectrumPan(els.irPlot, "ir");
 }
 
 function init() {

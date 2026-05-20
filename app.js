@@ -22,15 +22,19 @@ const phaseFamilies = [
   ["mixed", "mixed"],
 ];
 
+const phaseTokenPattern = "amorphous|ZIF-C|Sodalite|SOD|DIA|U13|U12";
+
 const metricModes = [
   ["Phase", "phase"],
   ["EE%", "EE"],
   ["LC%", "LC"],
+  ["IR-ratio%", "IR"],
 ];
 
 const metricPalettes = {
   EE: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
   LC: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
+  IR: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
 };
 
 const valueFilterKeys = ["M", "L", "BSA", "EE", "LC"];
@@ -58,7 +62,7 @@ const xrdPlot = {
   width: 520,
   height: 330,
   margin: { top: 22, right: 18, bottom: 42, left: 50 },
-  colors: ["#172124", "#0A7C86", "#D73744"],
+  colors: ["#172124", "#172124", "#172124"],
 };
 
 const irPlot = {
@@ -69,7 +73,7 @@ const irPlot = {
 };
 
 const defaultView = {
-  rotationX: 1.24,
+  rotationX: 1.25,
   rotationY: 0,
   rotationZ: 0,
   zoom: 1,
@@ -79,8 +83,8 @@ const defaultView = {
 
 let state = {
   dataset: "WW",
-  sample: 34,
-  concentration: "100 mg/mL",
+  sample: 32,
+  concentration: "25 mg/mL",
   layerGap: plot.minLayerGap,
   visibleConcentration: "all",
   phaseFilter: "all",
@@ -105,6 +109,7 @@ const els = {
   svg: document.getElementById("ternaryStack"),
   plotFrame: document.querySelector(".plot-frame"),
   legend: document.getElementById("legend"),
+  phaseLegendDock: document.getElementById("phaseLegendDock"),
   tabs: Array.from(document.querySelectorAll(".dataset-tab")),
   concentrationFilters: document.getElementById("concentrationFilters"),
   visualizationFilters: document.getElementById("visualizationFilters"),
@@ -127,6 +132,7 @@ const els = {
   detailRatio: document.getElementById("detailRatio"),
   detailEE: document.getElementById("detailEE"),
   detailLC: document.getElementById("detailLC"),
+  detailIR: document.getElementById("detailIR"),
   phaseRows: document.getElementById("phaseRows"),
   xrdPlot: document.getElementById("xrdPlot"),
   xrdLegend: document.getElementById("xrdLegend"),
@@ -252,8 +258,13 @@ function renderPhaseText(container, phase) {
       container.append(document.createTextNode(source.slice(cursor, match.index)));
     }
 
+    const label = normalizedToken(match[0]);
+    const color = colorForPhase(label);
     const strong = document.createElement("strong");
-    strong.textContent = normalizedToken(match[0]);
+    strong.className = "phase-component";
+    strong.style.color = color;
+    strong.style.webkitTextFillColor = color;
+    strong.textContent = label;
     container.append(strong);
     cursor = pattern.lastIndex;
     match = pattern.exec(source);
@@ -262,6 +273,24 @@ function renderPhaseText(container, phase) {
   if (cursor < source.length) {
     container.append(document.createTextNode(source.slice(cursor)));
   }
+}
+
+function renderMixedPhaseText(container, phase) {
+  const components = phaseColorComponents(phase);
+  if (components.length < 2) return false;
+
+  container.replaceChildren();
+
+  components.forEach((component, index) => {
+    if (index > 0) container.append(document.createTextNode("+"));
+    const span = document.createElement("span");
+    span.className = "phase-component";
+    span.style.color = component.color;
+    span.style.webkitTextFillColor = component.color;
+    span.textContent = `${formatNumber(component.percent, 1)}%${component.label}`;
+    container.append(span);
+  });
+  return true;
 }
 
 function normalizePhase(phase) {
@@ -281,6 +310,112 @@ function normalizePhase(phase) {
 
 function colorForPhase(phase) {
   return palette[normalizePhase(phase)] || palette.other;
+}
+
+function hexToRgba(hex, alpha = 1) {
+  const rgb = hexToRgb(hex);
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+}
+
+function phaseColorComponents(phase) {
+  const source = String(phase || "").trim();
+  if (normalizePhase(source) !== "mixed") return [];
+
+  const components = [];
+  const percentPatterns = [
+    { regex: new RegExp(`(\\d+(?:\\.\\d+)?)\\s*%\\s*(${phaseTokenPattern})`, "gi"), percent: 1, token: 2 },
+    { regex: new RegExp(`(${phaseTokenPattern})\\s*(\\d+(?:\\.\\d+)?)\\s*%`, "gi"), percent: 2, token: 1 },
+  ];
+
+  for (const pattern of percentPatterns) {
+    let match = pattern.regex.exec(source);
+    while (match) {
+      const label = normalizedToken(match[pattern.token]);
+      components.push({
+        label,
+        key: normalizePhase(label),
+        percent: Number(match[pattern.percent]),
+        color: colorForPhase(label),
+      });
+      match = pattern.regex.exec(source);
+    }
+    if (components.length) break;
+  }
+
+  if (!components.length) {
+    const plainToken = new RegExp(phaseTokenPattern, "gi");
+    let match = plainToken.exec(source);
+    while (match) {
+      const label = normalizedToken(match[0]);
+      components.push({
+        label,
+        key: normalizePhase(label),
+        percent: 1,
+        color: colorForPhase(label),
+      });
+      match = plainToken.exec(source);
+    }
+  }
+
+  const valid = components.filter(
+    (component) => Number.isFinite(component.percent) && component.percent > 0 && component.key !== "missing",
+  );
+  const total = valid.reduce((sum, component) => sum + component.percent, 0);
+  if (!valid.length || total <= 0) return [];
+
+  return valid.map((component) => ({
+    ...component,
+    fraction: component.percent / total,
+  }));
+}
+
+function phaseGradientStops(phase, alpha = 1) {
+  const components = phaseColorComponents(phase);
+  if (components.length < 2) return [];
+
+  let cursor = 0;
+  return components.flatMap((component, index) => {
+    const start = cursor;
+    const end = index === components.length - 1 ? 100 : cursor + component.fraction * 100;
+    cursor = end;
+    const color = alpha < 1 ? hexToRgba(component.color, alpha) : component.color;
+    return [
+      { color, offset: start },
+      { color, offset: end },
+    ];
+  });
+}
+
+function phaseGradientCss(phase, alpha = 1) {
+  const stops = phaseGradientStops(phase, alpha);
+  if (!stops.length) return "";
+  return `linear-gradient(90deg, ${stops
+    .map((stop) => `${stop.color} ${stop.offset.toFixed(2)}%`)
+    .join(", ")})`;
+}
+
+function createPhaseSvgGradient(id, phase) {
+  const stops = phaseGradientStops(phase);
+  if (!stops.length) return null;
+
+  const defs = createSvgElement("defs");
+  const gradient = createSvgElement("linearGradient", {
+    id,
+    x1: "0%",
+    y1: "0%",
+    x2: "100%",
+    y2: "0%",
+  });
+  stops.forEach((stop) => {
+    gradient.append(
+      createSvgElement("stop", {
+        offset: `${stop.offset.toFixed(2)}%`,
+        "stop-color": stop.color,
+      }),
+    );
+  });
+  defs.append(gradient);
+  return defs;
 }
 
 function metricDefinition(metricKey) {
@@ -309,11 +444,11 @@ function metricValue(metricKey, sampleOrNumber, concentration, dataset = state.d
   return Number.isFinite(value) ? value : null;
 }
 
-function formatMetricEntry(entry, includeError = true) {
+function formatMetricEntry(entry, includeError = true, metricKey = "") {
   const value = Number(entry?.value);
   if (!Number.isFinite(value)) return "-";
 
-  const base = `${formatNumber(value, 1)}%`;
+  const base = ["EE", "LC", "IR"].includes(metricKey) ? `${value.toFixed(1)}%` : `${formatNumber(value, 1)}%`;
   const error = Number(entry?.error);
   if (includeError && Number.isFinite(error)) {
     return `${base} +/- ${formatNumber(error, 1)}%`;
@@ -567,27 +702,44 @@ function lineBetween(group, a, b, className = "layer-grid") {
   );
 }
 
-function renderLegend() {
-  if (state.visualization === "phase") {
-    els.legend.replaceChildren(
-      ...phaseFamilies.map(([label, key]) => {
-        const item = document.createElement("span");
-        item.className = "legend-item";
+function triangleScreenWidth(svgNode = els.svg) {
+  const widths = Array.from(svgNode?.querySelectorAll(".layer-plane") || [])
+    .map((polygon) => {
+      const xs = String(polygon.getAttribute("points") || "")
+        .trim()
+        .split(/\s+/)
+        .map((pair) => Number(pair.split(",")[0]))
+        .filter(Number.isFinite);
+      if (xs.length < 2) return 0;
+      return Math.max(...xs) - Math.min(...xs);
+    })
+    .filter((width) => width > 0);
+  return widths.length ? Math.max(...widths) : plot.triangleWidth;
+}
 
-        const swatch = document.createElement("span");
-        swatch.className = "legend-swatch";
-        swatch.style.background = palette[key];
+function updateLegendDockWidth() {
+  if (!els.phaseLegendDock) return;
+  els.phaseLegendDock.style.removeProperty("--legend-width");
+}
 
-        const text = document.createElement("strong");
-        text.textContent = label;
+function createPhaseLegendElements() {
+  return phaseFamilies.map(([label, key]) => {
+    const item = document.createElement("span");
+    item.className = "legend-item";
 
-        item.append(swatch, text);
-        return item;
-      }),
-    );
-    return;
-  }
+    const swatch = document.createElement("span");
+    swatch.className = "legend-swatch";
+    swatch.style.background = palette[key];
 
+    const text = document.createElement("strong");
+    text.textContent = label;
+
+    item.append(swatch, text);
+    return item;
+  });
+}
+
+function createMetricLegendElement() {
   const metricKey = state.visualization;
   const definition = metricDefinition(metricKey);
   const paletteConfig = metricPalettes[metricKey] || metricPalettes.EE;
@@ -595,6 +747,7 @@ function renderLegend() {
   legend.className = "metric-legend";
 
   const label = document.createElement("strong");
+  label.className = "metric-label";
   label.textContent = definition?.label || metricKey;
 
   const low = document.createElement("span");
@@ -616,7 +769,19 @@ function renderLegend() {
   missingText.textContent = "No data";
 
   legend.append(label, low, scale, high, missing, missingText);
-  els.legend.replaceChildren(legend);
+  return legend;
+}
+
+function renderLegend() {
+  els.legend.replaceChildren();
+
+  if (!els.phaseLegendDock) return;
+  if (state.visualization === "phase") {
+    els.phaseLegendDock.replaceChildren(...createPhaseLegendElements());
+  } else {
+    els.phaseLegendDock.replaceChildren(createMetricLegendElement());
+  }
+  els.phaseLegendDock.classList.remove("is-hidden");
 }
 
 function renderGrid(group, index, fit) {
@@ -703,7 +868,7 @@ function renderSamples(group, concentration, index, fit, samples) {
     const metricText =
       state.visualization === "phase"
         ? ""
-        : `, ${state.visualization} ${formatMetricEntry(metricEntry(state.visualization, sample, concentration), false)}`;
+        : `, ${state.visualization} ${formatMetricEntry(metricEntry(state.visualization, sample, concentration), false, state.visualization)}`;
     if (!phaseMatches(phase) || !valueFiltersMatch(sample, concentration)) {
       return;
     }
@@ -722,8 +887,12 @@ function renderSamples(group, concentration, index, fit, samples) {
       "data-concentration": concentration,
       "aria-label": `Sample ${sample.sample}, ${formatConcentrationPlain(concentration)}, ${displayPhasePlain(phase)}${metricText}`,
     });
+    const mixedGradientId = `phaseMix${state.dataset}${index}${String(concentration).replace(/[^a-z0-9]/gi, "")}${sample.sample}`;
+    const mixedGradient =
+      state.visualization === "phase" ? createPhaseSvgGradient(mixedGradientId, phase) : null;
+    const dotFill = mixedGradient ? `url(#${mixedGradientId})` : colorForSample(sample, concentration, phase);
 
-    sampleGroup.append(
+    const sampleNodes = [
       createSvgElement("circle", {
         class: "sample-hit",
         cx: point.x,
@@ -741,7 +910,7 @@ function renderSamples(group, concentration, index, fit, samples) {
         cx: point.x,
         cy: point.y,
         r: scaledSampleSize(12.5),
-        fill: colorForSample(sample, concentration, phase),
+        fill: dotFill,
       }),
       createSvgElement("text", {
         class: "sample-number",
@@ -749,7 +918,9 @@ function renderSamples(group, concentration, index, fit, samples) {
         y: point.y + 0.6,
         style: `font-size: ${scaledSampleSize(textSizeForClass("sample-number"))}px`,
       }),
-    );
+    ];
+    if (mixedGradient) sampleNodes.unshift(mixedGradient);
+    sampleGroup.append(...sampleNodes);
     sampleGroup.lastElementChild.textContent = sample.sample;
 
     const title = createSvgElement("title");
@@ -863,6 +1034,7 @@ function renderPlot() {
 
   els.svg.setAttribute("viewBox", `0 0 ${plot.width} ${plot.height}`);
   els.svg.replaceChildren(...(isExporting ? [] : [renderPlotBackground()]), ...layers);
+  updateLegendDockWidth();
   updateHighlights();
 }
 
@@ -1004,6 +1176,7 @@ function renderXrdPlot(sample) {
   if (!els.xrdPlot || !els.xrdLegend || !els.xrdStatus) return;
 
   const xrdData = window.XRD_DATA;
+  const synthesisLabels = xrdData?.syntheses || ["First synthesis", "Second synthesis", "Third synthesis"];
   const triplicates = xrdTriplicatesFor(sample, state.concentration);
   const available = triplicates
     .map((values, index) => ({ values, index }))
@@ -1030,6 +1203,7 @@ function renderXrdPlot(sample) {
 
   [0, 1, 2].forEach((index) => {
     const stack = xrdStackGeometry(geometry, index, 3);
+    const labelY = Math.min(stack.baseline + 14, geometry.top + geometry.height - 8);
     nodes.push(
       createSvgElement("line", {
         class: "xrd-grid-line",
@@ -1040,6 +1214,9 @@ function renderXrdPlot(sample) {
       }),
       createXrdText(`${index + 1}`, geometry.left - 10, stack.baseline - 4, "xrd-tick-label", {
         "text-anchor": "end",
+      }),
+      createXrdText(synthesisLabels[index] || `Synthesis ${index + 1}`, geometry.left + 8, labelY, "xrd-line-label", {
+        "text-anchor": "start",
       }),
     );
   });
@@ -1123,28 +1300,7 @@ function renderXrdPlot(sample) {
   if (els.xrdZoomIn) els.xrdZoomIn.disabled = state.xrdZoom >= 8;
   if (els.xrdReset) els.xrdReset.disabled = state.xrdZoom <= 1 && Math.abs(state.xrdPan) < 0.0001;
 
-  const legendItems = (xrdData?.syntheses || ["First synthesis", "Second synthesis", "Third synthesis"]).map(
-    (label, index) => {
-      const item = document.createElement("span");
-      item.className = "xrd-legend-item";
-
-      const swatch = document.createElement("span");
-      swatch.className = "xrd-swatch";
-      swatch.style.background = xrdPlot.colors[index] || xrdPlot.colors[0];
-
-      const text = document.createElement("span");
-      text.textContent = label;
-      if (!Array.isArray(triplicates[index])) {
-        item.classList.add("is-missing");
-        text.textContent = `${label} (missing)`;
-      }
-
-      item.append(swatch, text);
-      return item;
-    },
-  );
-
-  els.xrdLegend.replaceChildren(...legendItems);
+  els.xrdLegend.replaceChildren();
 }
 
 function irSpectrumFor(sample, concentration) {
@@ -1371,7 +1527,8 @@ function spectrumExportStyles() {
     .xrd-axis-line { stroke: #172124; stroke-width: 1.6; }
     .xrd-pattern-line { fill: none; stroke-width: 1.9; stroke-linejoin: round; stroke-linecap: round; }
     .ir-pattern-line { fill: none; stroke: ${irPlot.color}; stroke-width: 1.9; stroke-linejoin: round; stroke-linecap: round; }
-    .xrd-tick-label, .xrd-axis-title { fill: #172124; font-size: 12px; font-weight: 720; }
+    .xrd-tick-label, .xrd-axis-title, .xrd-line-label { fill: #172124; font-size: 12px; font-weight: 720; }
+    .xrd-line-label { font-size: 11px; font-weight: 780; }
     .xrd-axis-title { font-size: 13px; font-weight: 820; }
     .xrd-empty { fill: #637074; font-size: 18px; font-weight: 780; }
   `;
@@ -1500,7 +1657,7 @@ function createMetricChip(metricKey, sample, concentration) {
 
   const entry = metricEntry(metricKey, sample, concentration);
   const value = Number(entry?.value);
-  chip.textContent = formatMetricEntry(entry, false);
+  chip.textContent = formatMetricEntry(entry, false, metricKey);
 
   if (Number.isFinite(value)) {
     const color = colorForMetric(metricKey, value);
@@ -1516,6 +1673,44 @@ function createMetricChip(metricKey, sample, concentration) {
   return chip;
 }
 
+function resetSelectedPhaseStyle() {
+  els.selectedPhase.classList.remove("is-mixed-phase");
+  els.selectedPhase.style.backgroundImage = "";
+  els.selectedPhase.style.backgroundClip = "";
+  els.selectedPhase.style.removeProperty("-webkit-background-clip");
+  els.selectedPhase.style.removeProperty("-webkit-text-fill-color");
+  els.selectedPhase.style.color = "";
+}
+
+function renderSelectedPhase(phase) {
+  resetSelectedPhaseStyle();
+  if (phaseColorComponents(phase).length > 1) {
+    els.selectedPhase.classList.add("is-mixed-phase");
+    renderMixedPhaseText(els.selectedPhase, phase);
+    return;
+  }
+
+  renderPhaseText(els.selectedPhase, phase);
+  els.selectedPhase.style.color = colorForPhase(phase);
+}
+
+function stylePhaseChip(chip, phase) {
+  const phaseType = normalizePhase(phase);
+  const phaseColor = colorForPhase(phase);
+  chip.classList.toggle("is-mixed-phase", phaseColorComponents(phase).length > 1);
+
+  if (phaseColorComponents(phase).length > 1) {
+    chip.style.background = phaseGradientCss(phase, 0.42);
+    chip.style.borderColor = palette.mixed;
+    chip.style.color = "#172124";
+    return;
+  }
+
+  chip.style.background = phaseType === "missing" ? phaseColor : `${phaseColor}26`;
+  chip.style.borderColor = phaseType === "missing" ? phaseColor : `${phaseColor}9A`;
+  chip.style.color = phaseType === "missing" ? "#ffffff" : "";
+}
+
 function updateDetail() {
   const sample = currentSample();
   if (!sample) return;
@@ -1523,18 +1718,19 @@ function updateDetail() {
   const phase = sample.phases[state.concentration] || "-";
   const eeEntry = metricEntry("EE", sample, state.concentration);
   const lcEntry = metricEntry("LC", sample, state.concentration);
+  const irEntry = metricEntry("IR", sample, state.concentration);
 
   els.detailDataset.textContent = state.dataset;
   els.detailTitle.textContent = `Sample ${sample.sample}`;
   renderConcentrationHtml(els.selectedConcentration, state.concentration);
-  renderPhaseText(els.selectedPhase, phase);
+  renderSelectedPhase(phase);
   els.detailM.textContent = `${formatNumber(sample.M)}%`;
   els.detailL.textContent = `${formatNumber(sample.L)}%`;
   els.detailBSA.textContent = `${formatNumber(sample.BSA)}%`;
   els.detailRatio.textContent = formatNumber(sample.ratio);
-  els.detailEE.textContent = formatMetricEntry(eeEntry);
-  els.detailLC.textContent = formatMetricEntry(lcEntry);
-  els.selectedPhase.style.color = colorForPhase(phase);
+  els.detailEE.textContent = formatMetricEntry(eeEntry, true, "EE");
+  els.detailLC.textContent = formatMetricEntry(lcEntry, true, "LC");
+  if (els.detailIR) els.detailIR.textContent = formatMetricEntry(irEntry, true, "IR");
   renderXrdPlot(sample);
   renderIrPlot(sample);
 
@@ -1551,13 +1747,11 @@ function updateDetail() {
       const phaseCell = document.createElement("td");
       const chip = document.createElement("span");
       const rowPhase = sample.phases[concentration] || "-";
-      const rowPhaseType = normalizePhase(rowPhase);
-      const rowPhaseColor = colorForPhase(rowPhase);
       chip.className = "phase-chip";
-      chip.style.background = rowPhaseType === "missing" ? rowPhaseColor : `${rowPhaseColor}26`;
-      chip.style.borderColor = rowPhaseType === "missing" ? rowPhaseColor : `${rowPhaseColor}9A`;
-      chip.style.color = rowPhaseType === "missing" ? "#ffffff" : "";
-      renderPhaseText(chip, rowPhase);
+      if (!renderMixedPhaseText(chip, rowPhase)) {
+        renderPhaseText(chip, rowPhase);
+      }
+      stylePhaseChip(chip, rowPhase);
       phaseCell.append(chip);
 
       const eeCell = document.createElement("td");
@@ -1566,7 +1760,10 @@ function updateDetail() {
       const lcCell = document.createElement("td");
       lcCell.append(createMetricChip("LC", sample, concentration));
 
-      row.append(concentrationCell, phaseCell, eeCell, lcCell);
+      const irCell = document.createElement("td");
+      irCell.append(createMetricChip("IR", sample, concentration));
+
+      row.append(concentrationCell, phaseCell, eeCell, lcCell, irCell);
       return row;
     }),
   );
@@ -1627,8 +1824,8 @@ function setView(view) {
   const views = {
     z: { rotationX: 0, rotationY: 0, rotationZ: 0 },
     l: { rotationX: 0.07, rotationY: 0, rotationZ: 0 },
-    y: { rotationX: 1.24, rotationY: 0, rotationZ: 0 },
-    x: { rotationX: 1.18, rotationY: -1.45, rotationZ: 0 },
+    y: { rotationX: 1.25, rotationY: 0, rotationZ: 0 },
+    x: { rotationX: 1.18, rotationY: -1.25, rotationZ: 0 },
   };
 
   state = {
@@ -1876,7 +2073,181 @@ function exportStyles() {
     .sample-ring { opacity: 0; }
     .sample-point.is-selected-sample .sample-dot { stroke: #1d2528; stroke-width: 2.4; }
     .sample-point.is-selected-layer .sample-ring { fill: none; stroke: #1d2528; stroke-width: 3; opacity: 1; }
+    .export-legend-panel { fill: #ffffff; stroke: none; }
+    .export-legend-text { fill: #1d2528; font-size: 13px; font-weight: 760; dominant-baseline: middle; }
+    .export-legend-text-bold { fill: #1d2528; font-size: 13px; font-weight: 850; dominant-baseline: middle; }
+    .export-legend-swatch { stroke: rgba(0, 0, 0, 0.2); stroke-width: 1; }
+    .export-metric-scale { stroke: rgba(0, 0, 0, 0.22); stroke-width: 1; }
   `;
+}
+
+function exportContentBottom(svgNode = els.svg) {
+  let bottom = 0;
+
+  svgNode?.querySelectorAll(".layer-plane, .plot-grid-fill").forEach((node) => {
+    const points = String(node.getAttribute("points") || "")
+      .trim()
+      .split(/\s+/)
+      .map((pair) => Number(pair.split(",")[1]))
+      .filter(Number.isFinite);
+    if (points.length) bottom = Math.max(bottom, ...points);
+  });
+
+  svgNode?.querySelectorAll(".sample-dot, .sample-ring").forEach((node) => {
+    const cy = Number(node.getAttribute("cy"));
+    const r = Number(node.getAttribute("r"));
+    if (Number.isFinite(cy) && Number.isFinite(r)) {
+      bottom = Math.max(bottom, cy + r);
+    }
+  });
+
+  svgNode?.querySelectorAll(".layer-label, .axis-label, .tick-label").forEach((node) => {
+    const y = Number(node.getAttribute("y"));
+    if (Number.isFinite(y)) bottom = Math.max(bottom, y + 18);
+  });
+
+  return bottom || plot.height;
+}
+
+function exportLegendLayout(svgNode = els.svg) {
+  const panelHeight = 44;
+  const previousPanelY = plot.height + 22;
+  const contentBottom = exportContentBottom(svgNode);
+  const panelY = contentBottom + Math.max(18, (previousPanelY - contentBottom) / 2);
+  return {
+    panelHeight,
+    panelY,
+    centerY: panelY + panelHeight / 2,
+    height: panelY + panelHeight + 28,
+  };
+}
+
+function exportLegendTargetWidth() {
+  return clamp(triangleScreenWidth(), 560, plot.width - 220);
+}
+
+function estimatedExportTextWidth(text, size = 13) {
+  return String(text || "").length * size * 0.56;
+}
+
+function createExportText(text, x, y, className = "export-legend-text", attrs = {}) {
+  const node = createSvgElement("text", {
+    class: className,
+    x,
+    y,
+    ...attrs,
+  });
+  node.textContent = text;
+  return node;
+}
+
+function createExportLegend(layout = exportLegendLayout()) {
+  const group = createSvgElement("g", {
+    class: "export-legend",
+    "aria-hidden": "true",
+  });
+  const { panelHeight, panelY, centerY } = layout;
+
+  if (state.visualization === "phase") {
+    const itemWidths = phaseFamilies.map(([label]) => 21 + estimatedExportTextWidth(label));
+    const itemWidthTotal = itemWidths.reduce((sum, width) => sum + width, 0);
+    const panelWidth = Math.max(exportLegendTargetWidth(), itemWidthTotal + 28 + 18 * Math.max(0, itemWidths.length - 1));
+    const itemGap =
+      phaseFamilies.length > 1 ? Math.max(18, (panelWidth - 28 - itemWidthTotal) / (phaseFamilies.length - 1)) : 0;
+    const panelX = (plot.width - panelWidth) / 2;
+    let x = panelX + 14;
+
+    group.append(
+      createSvgElement("rect", {
+        class: "export-legend-panel",
+        x: panelX,
+        y: panelY,
+        width: panelWidth,
+        height: panelHeight,
+      }),
+    );
+
+    phaseFamilies.forEach(([label, key], index) => {
+      group.append(
+        createSvgElement("circle", {
+          class: "export-legend-swatch",
+          cx: x + 6,
+          cy: centerY,
+          r: 6,
+          fill: palette[key],
+        }),
+        createExportText(label, x + 19, centerY, "export-legend-text-bold"),
+      );
+      x += itemWidths[index] + itemGap;
+    });
+    return group;
+  }
+
+  const metricKey = state.visualization;
+  const definition = metricDefinition(metricKey);
+  const paletteConfig = metricPalettes[metricKey] || metricPalettes.EE;
+  const label = definition?.label || metricKey;
+  const labelWidth = estimatedExportTextWidth(label, 13);
+  const panelWidth = Math.max(exportLegendTargetWidth(), labelWidth + 10 + 22 + 9 + 126 + 10 + 38 + 18 + 12 + 8 + 52 + 28);
+  const panelX = (plot.width - panelWidth) / 2;
+  let x = panelX + 14;
+  const scaleWidth = Math.max(126, panelWidth - 28 - (labelWidth + 10 + 22 + 9 + 10 + 38 + 18 + 12 + 8 + 52));
+  const gradientId = `exportMetricGradient${metricKey}`;
+
+  const defs = createSvgElement("defs");
+  const gradient = createSvgElement("linearGradient", {
+    id: gradientId,
+    x1: "0%",
+    y1: "0%",
+    x2: "100%",
+    y2: "0%",
+  });
+  gradient.append(
+    createSvgElement("stop", { offset: "0%", "stop-color": paletteConfig.low }),
+    createSvgElement("stop", { offset: "100%", "stop-color": paletteConfig.high }),
+  );
+  defs.append(gradient);
+
+  group.append(
+    defs,
+    createSvgElement("rect", {
+      class: "export-legend-panel",
+      x: panelX,
+      y: panelY,
+      width: panelWidth,
+      height: panelHeight,
+    }),
+    createExportText(label, x, centerY, "export-legend-text-bold"),
+  );
+  x += labelWidth + 10;
+  group.append(createExportText("0%", x, centerY));
+  x += 31;
+  group.append(
+    createSvgElement("rect", {
+      class: "export-metric-scale",
+      x,
+      y: centerY - 6,
+      width: scaleWidth,
+      height: 12,
+      rx: 6,
+      fill: `url(#${gradientId})`,
+    }),
+  );
+  x += scaleWidth + 10;
+  group.append(createExportText("100%", x, centerY));
+  x += 56;
+  group.append(
+    createSvgElement("circle", {
+      class: "export-legend-swatch",
+      cx: x + 6,
+      cy: centerY,
+      r: 6,
+      fill: paletteConfig.missing,
+      stroke: paletteConfig.missing,
+    }),
+    createExportText("No data", x + 20, centerY),
+  );
+  return group;
 }
 
 function cloneSvgForFullExport() {
@@ -1908,22 +2279,26 @@ function cloneSvgForFullExport() {
 }
 
 function cloneSvgForExport() {
+  const layout = exportLegendLayout(els.svg);
+  const height = layout.height;
   const clone = els.svg.cloneNode(true);
   clone.setAttribute("xmlns", SVG_NS);
   clone.setAttribute("width", plot.width);
-  clone.setAttribute("height", plot.height);
+  clone.setAttribute("height", height);
+  clone.setAttribute("viewBox", `0 0 ${plot.width} ${height}`);
 
   const background = createSvgElement("rect", {
     x: 0,
     y: 0,
     width: plot.width,
-    height: plot.height,
+    height,
     fill: "#ffffff",
   });
   const defs = createSvgElement("defs");
   const style = createSvgElement("style");
   style.textContent = exportStyles();
   defs.append(style);
+  clone.append(createExportLegend(layout));
   clone.prepend(background);
   clone.prepend(defs);
   return clone;
@@ -2031,11 +2406,12 @@ function downloadPng() {
   const url = URL.createObjectURL(svgBlob);
   const image = new Image();
   const fileSafeConcentration = formatConcentrationFile(state.concentration);
+  const height = Number(clone.getAttribute("height")) || plot.height;
 
   image.onload = () => {
     const canvas = document.createElement("canvas");
     canvas.width = plot.width * plot.exportScale;
-    canvas.height = plot.height * plot.exportScale;
+    canvas.height = height * plot.exportScale;
     const context = canvas.getContext("2d");
     context.fillStyle = "#ffffff";
     context.fillRect(0, 0, canvas.width, canvas.height);

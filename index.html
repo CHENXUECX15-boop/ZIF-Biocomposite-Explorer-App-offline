@@ -9,7 +9,7 @@
   <body>
     <header class="app-header">
       <div>
-        <p class="eyebrow"></p>
+        
         <h1>ZIF Biocomposite Explorer App - Offline Version</h1>
       </div>
     </header>
@@ -35,11 +35,12 @@
             <button class="metric-tab is-active" type="button" data-visualization="phase">Phase</button>
             <button class="metric-tab" type="button" data-visualization="EE">EE%</button>
             <button class="metric-tab" type="button" data-visualization="LC">LC%</button>
+            <button class="metric-tab" type="button" data-visualization="IR">IR-ratio%</button>
           </div>
         </section>
 
         <section class="control-section">
-          <h2>filters</h2>
+          <h2>Interactive filters</h2>
           <div class="range-filter-grid" id="valueFilters" aria-label="M, L, BSA, EE, and LC filters">
             <label class="range-filter">
               <span>M%</span>
@@ -111,6 +112,7 @@
         </div>
         <div class="plot-frame">
           <svg id="ternaryStack" role="img" aria-label="Five stacked ternary phase layers"></svg>
+          <div class="phase-legend-dock is-hidden" id="phaseLegendDock" aria-label="Visualization legend"></div>
           <div class="view-gizmo" aria-label="View and zoom controls">
             <div class="gizmo-row">
               <button class="gizmo-axis x-axis" type="button" data-view="x" title="Side view">X</button>
@@ -164,6 +166,10 @@
             <dt>LC</dt>
             <dd id="detailLC">-</dd>
           </div>
+          <div class="wide-metric">
+            <dt>IR-ratio</dt>
+            <dd id="detailIR">-</dd>
+          </div>
         </dl>
 
         <div class="phase-table-wrap">
@@ -174,6 +180,7 @@
                 <th>Phase</th>
                 <th>EE%</th>
                 <th>LC%</th>
+                <th>IR-ratio%</th>
               </tr>
             </thead>
             <tbody id="phaseRows"></tbody>
@@ -215,6 +222,7 @@
 
     <script src="data/phase-data.js"></script>
     <script src="data/metrics-data.js"></script>
+    <script src="data/ir-ratio-data.js"></script>
     <script src="data/xrd-data.js"></script>
     <script src="data/ir-data.js"></script>
     <script src="app.js"></script>

@@ -12,6 +12,11 @@ const palette = {
   other: "#8D735B",
 };
 
+const mixedLegendColors = {
+  left: "#F10000",
+  right: "#20D1DC",
+};
+
 const phaseFamilies = [
   ["amorphous", "amorphous"],
   ["ZIF-C", "ZIF-C"],
@@ -119,6 +124,7 @@ const els = {
   modeTabs: Array.from(document.querySelectorAll(".mode-tab")),
   resetView: document.getElementById("resetView"),
   downloadPng: document.getElementById("downloadPng"),
+  downloadPagePng: document.getElementById("downloadPagePng"),
   zoomIn: document.getElementById("zoomIn"),
   zoomOut: document.getElementById("zoomOut"),
   viewButtons: Array.from(document.querySelectorAll("[data-view]")),
@@ -369,25 +375,43 @@ function phaseColorComponents(phase) {
   }));
 }
 
-function phaseGradientStops(phase, alpha = 1) {
+function phaseGradientStops(phase, alpha = 1, showSeparator = false) {
   const components = phaseColorComponents(phase);
   if (components.length < 2) return [];
 
   let cursor = 0;
+  let nextStart = 0;
+  const separatorColor = alpha < 1 ? "rgba(23, 33, 36, 0.42)" : "#172124";
+  const separatorHalfWidth = 0.55;
+
   return components.flatMap((component, index) => {
     const start = cursor;
     const end = index === components.length - 1 ? 100 : cursor + component.fraction * 100;
     cursor = end;
     const color = alpha < 1 ? hexToRgba(component.color, alpha) : component.color;
+    const visibleStart = Math.max(start, nextStart);
+
+    if (showSeparator && index < components.length - 1) {
+      const separatorStart = clamp(end - separatorHalfWidth, visibleStart, end);
+      const separatorEnd = clamp(end + separatorHalfWidth, end, 100);
+      nextStart = separatorEnd;
+      return [
+        { color, offset: visibleStart },
+        { color, offset: separatorStart },
+        { color: separatorColor, offset: separatorStart },
+        { color: separatorColor, offset: separatorEnd },
+      ];
+    }
+
     return [
-      { color, offset: start },
+      { color, offset: visibleStart },
       { color, offset: end },
     ];
   });
 }
 
-function phaseGradientCss(phase, alpha = 1) {
-  const stops = phaseGradientStops(phase, alpha);
+function phaseGradientCss(phase, alpha = 1, showSeparator = false) {
+  const stops = phaseGradientStops(phase, alpha, showSeparator);
   if (!stops.length) return "";
   return `linear-gradient(90deg, ${stops
     .map((stop) => `${stop.color} ${stop.offset.toFixed(2)}%`)
@@ -395,7 +419,7 @@ function phaseGradientCss(phase, alpha = 1) {
 }
 
 function createPhaseSvgGradient(id, phase) {
-  const stops = phaseGradientStops(phase);
+  const stops = phaseGradientStops(phase, 1, true);
   if (!stops.length) return null;
 
   const defs = createSvgElement("defs");
@@ -702,6 +726,43 @@ function lineBetween(group, a, b, className = "layer-grid") {
   );
 }
 
+function createLegendSwatch(key, className) {
+  if (key !== "mixed") {
+    const swatch = document.createElement("span");
+    swatch.className = className;
+    swatch.style.background = palette[key];
+    return swatch;
+  }
+
+  const swatch = createSvgElement("svg", {
+    class: `${className} mixed-legend-swatch`,
+    viewBox: "0 0 20 20",
+    "aria-hidden": "true",
+    focusable: "false",
+  });
+  swatch.append(
+    createSvgElement("circle", {
+      cx: 10,
+      cy: 10,
+      r: 8.8,
+      fill: mixedLegendColors.right,
+    }),
+    createSvgElement("path", {
+      d: "M 10 1.2 A 8.8 8.8 0 0 0 10 18.8 L 10 1.2 Z",
+      fill: mixedLegendColors.left,
+    }),
+    createSvgElement("circle", {
+      cx: 10,
+      cy: 10,
+      r: 8.8,
+      fill: "none",
+      stroke: "rgba(0, 0, 0, 0.24)",
+      "stroke-width": 1.2,
+    }),
+  );
+  return swatch;
+}
+
 function triangleScreenWidth(svgNode = els.svg) {
   const widths = Array.from(svgNode?.querySelectorAll(".layer-plane") || [])
     .map((polygon) => {
@@ -719,7 +780,41 @@ function triangleScreenWidth(svgNode = els.svg) {
 
 function updateLegendDockWidth() {
   if (!els.phaseLegendDock) return;
-  els.phaseLegendDock.style.removeProperty("--legend-width");
+  const frame = els.plotFrame?.getBoundingClientRect();
+  const gizmo = els.plotFrame?.querySelector(".view-gizmo")?.getBoundingClientRect();
+  const frameWidth = frame?.width || plot.width;
+  const sideReserve = (gizmo?.width || 78) + 34;
+  const maxWidth = Math.max(260, frameWidth - sideReserve * 2);
+  const targetRatio = state.visualization === "phase" ? 0.74 : 0.72;
+  const preferredWidth = frameWidth * targetRatio;
+  const minWidth = Math.min(maxWidth, state.visualization === "phase" ? 330 : 390);
+  const legendWidth = Math.max(minWidth, Math.min(maxWidth, preferredWidth));
+  const scale = clamp(legendWidth / 720, 0.62, 1);
+
+  els.phaseLegendDock.style.setProperty("--legend-width", `${Math.round(legendWidth)}px`);
+  els.phaseLegendDock.style.setProperty("--legend-font-size", `${(16 * scale).toFixed(1)}px`);
+  els.phaseLegendDock.style.setProperty("--legend-gap", `${Math.round(18 * scale)}px`);
+  els.phaseLegendDock.style.setProperty("--legend-item-gap", `${Math.max(4, Math.round(7 * scale))}px`);
+  els.phaseLegendDock.style.setProperty("--legend-padding-x", `${Math.max(8, Math.round(18 * scale))}px`);
+  els.phaseLegendDock.style.setProperty("--legend-padding-y", `${Math.max(5, Math.round(10 * scale))}px`);
+  const swatchSize = Math.max(10, Math.round(16 * scale));
+  els.phaseLegendDock.style.setProperty("--legend-swatch-size", `${swatchSize % 2 ? swatchSize + 1 : swatchSize}px`);
+  els.phaseLegendDock.style.setProperty("--metric-label-width", `${Math.max(148, Math.round(228 * scale))}px`);
+  els.phaseLegendDock.style.setProperty("--metric-scale-width", `${Math.max(118, Math.round(260 * scale))}px`);
+}
+
+function scheduleLegendDockUpdate() {
+  window.requestAnimationFrame(updateLegendDockWidth);
+}
+
+function bindLegendDockResize() {
+  window.addEventListener("resize", scheduleLegendDockUpdate);
+  window.visualViewport?.addEventListener("resize", scheduleLegendDockUpdate);
+
+  if (window.ResizeObserver && els.plotFrame) {
+    const observer = new ResizeObserver(scheduleLegendDockUpdate);
+    observer.observe(els.plotFrame);
+  }
 }
 
 function createPhaseLegendElements() {
@@ -727,14 +822,10 @@ function createPhaseLegendElements() {
     const item = document.createElement("span");
     item.className = "legend-item";
 
-    const swatch = document.createElement("span");
-    swatch.className = "legend-swatch";
-    swatch.style.background = palette[key];
-
     const text = document.createElement("strong");
     text.textContent = label;
 
-    item.append(swatch, text);
+    item.append(createLegendSwatch(key, "legend-swatch"), text);
     return item;
   });
 }
@@ -1700,7 +1791,7 @@ function stylePhaseChip(chip, phase) {
   chip.classList.toggle("is-mixed-phase", phaseColorComponents(phase).length > 1);
 
   if (phaseColorComponents(phase).length > 1) {
-    chip.style.background = phaseGradientCss(phase, 0.42);
+    chip.style.background = phaseGradientCss(phase, 0.42, true);
     chip.style.borderColor = palette.mixed;
     chip.style.color = "#172124";
     return;
@@ -1864,13 +1955,10 @@ function renderFilterControls() {
     button.type = "button";
     button.dataset.phaseFilter = key;
 
-    const dot = document.createElement("span");
-    dot.className = "phase-dot";
-    dot.style.background = palette[key];
     const text = document.createElement("strong");
     text.textContent = label;
 
-    button.append(dot, text);
+    button.append(createLegendSwatch(key, "phase-dot"), text);
     return button;
   });
   els.phaseFilters.replaceChildren(allPhase, ...phaseButtons);
@@ -2141,6 +2229,40 @@ function createExportText(text, x, y, className = "export-legend-text", attrs = 
   return node;
 }
 
+function createExportLegendSwatch(key, cx, cy, r = 6) {
+  if (key !== "mixed") {
+    return [
+      createSvgElement("circle", {
+        class: "export-legend-swatch",
+        cx,
+        cy,
+        r,
+        fill: palette[key],
+      }),
+    ];
+  }
+
+  return [
+    createSvgElement("circle", {
+      cx,
+      cy,
+      r,
+      fill: mixedLegendColors.right,
+    }),
+    createSvgElement("path", {
+      d: `M ${cx} ${cy - r} A ${r} ${r} 0 0 0 ${cx} ${cy + r} L ${cx} ${cy - r} Z`,
+      fill: mixedLegendColors.left,
+    }),
+    createSvgElement("circle", {
+      class: "export-legend-swatch",
+      cx,
+      cy,
+      r,
+      fill: "none",
+    }),
+  ];
+}
+
 function createExportLegend(layout = exportLegendLayout()) {
   const group = createSvgElement("g", {
     class: "export-legend",
@@ -2169,13 +2291,7 @@ function createExportLegend(layout = exportLegendLayout()) {
 
     phaseFamilies.forEach(([label, key], index) => {
       group.append(
-        createSvgElement("circle", {
-          class: "export-legend-swatch",
-          cx: x + 6,
-          cy: centerY,
-          r: 6,
-          fill: palette[key],
-        }),
+        ...createExportLegendSwatch(key, x + 6, centerY, 6),
         createExportText(label, x + 19, centerY, "export-legend-text-bold"),
       );
       x += itemWidths[index] + itemGap;
@@ -2434,6 +2550,621 @@ function downloadPng() {
   image.src = url;
 }
 
+async function waitForPageAssets() {
+  await document.fonts?.ready;
+  await Promise.all(
+    Array.from(document.images).map((image) => {
+      if (image.complete && image.naturalWidth) return Promise.resolve();
+      return image.decode?.().catch(() => undefined) || Promise.resolve();
+    }),
+  );
+}
+
+function loadImageFromUrl(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("The page snapshot SVG could not be loaded."));
+    image.src = url;
+  });
+}
+
+function canvasToBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("The page canvas could not be converted to PNG."));
+      },
+      "image/png",
+      1,
+    );
+  });
+}
+
+const pageExportTheme = {
+  bg: "#f7f4ed",
+  surface: "#ffffff",
+  surfaceStrong: "#efe7d8",
+  ink: "#1d2528",
+  muted: "#637074",
+  line: "#d9d1c4",
+  accentDark: "#07524f",
+};
+
+function setCanvasFont(ctx, size, weight = 700) {
+  ctx.font = `${weight} ${size}px Inter, Segoe UI, Microsoft YaHei, Arial, sans-serif`;
+}
+
+function drawRoundRect(ctx, x, y, width, height, radius, fill, stroke = "", lineWidth = 1) {
+  ctx.save();
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(x, y, width, height, radius);
+  } else {
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + width, y, x + width, y + height, r);
+    ctx.arcTo(x + width, y + height, x, y + height, r);
+    ctx.arcTo(x, y + height, x, y, r);
+    ctx.arcTo(x, y, x + width, y, r);
+  }
+  if (fill) {
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawCardShadow(ctx, x, y, width, height, radius = 8) {
+  ctx.save();
+  ctx.shadowColor = "rgba(42, 38, 31, 0.13)";
+  ctx.shadowBlur = 34;
+  ctx.shadowOffsetY = 15;
+  drawRoundRect(ctx, x, y, width, height, radius, pageExportTheme.surface, "rgba(143, 129, 109, 0.34)", 1);
+  ctx.restore();
+}
+
+function drawGridBackground(ctx, x, y, width, height, grid = 38) {
+  ctx.save();
+  ctx.fillStyle = "#fbfaf6";
+  ctx.fillRect(x, y, width, height);
+  ctx.strokeStyle = "rgba(217, 209, 196, 0.42)";
+  ctx.lineWidth = 1;
+  for (let gx = x; gx <= x + width; gx += grid) {
+    ctx.beginPath();
+    ctx.moveTo(gx, y);
+    ctx.lineTo(gx, y + height);
+    ctx.stroke();
+  }
+  for (let gy = y; gy <= y + height; gy += grid) {
+    ctx.beginPath();
+    ctx.moveTo(x, gy);
+    ctx.lineTo(x + width, gy);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawButtonCanvas(ctx, text, x, y, width, height, active = false) {
+  drawRoundRect(ctx, x, y, width, height, 7, active ? pageExportTheme.ink : "#ffffff", pageExportTheme.line, 1);
+  setCanvasFont(ctx, 16, 760);
+  ctx.fillStyle = active ? "#ffffff" : pageExportTheme.muted;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + width / 2, y + height / 2 + 1);
+}
+
+function drawSectionTitle(ctx, text, x, y) {
+  setCanvasFont(ctx, 15, 820);
+  ctx.fillStyle = pageExportTheme.muted;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText(text.toUpperCase(), x, y);
+}
+
+function drawConcentrationCanvas(ctx, concentration, x, y, size = 15, weight = 760) {
+  const prefix = concentrationPrefix(concentration);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  setCanvasFont(ctx, size, weight);
+  ctx.fillText(prefix, x, y);
+  const prefixWidth = ctx.measureText(prefix).width;
+  setCanvasFont(ctx, size * 0.72, weight);
+  ctx.fillText("-1", x + prefixWidth + 1, y - size * 0.42);
+}
+
+function drawConcentrationButtonCanvas(ctx, concentration, x, y, width, height, active = false) {
+  drawRoundRect(ctx, x, y, width, height, 7, active ? pageExportTheme.ink : "#ffffff", pageExportTheme.line, 1);
+  ctx.fillStyle = active ? "#ffffff" : pageExportTheme.muted;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+
+  if (concentration === "all") {
+    setCanvasFont(ctx, 14, 760);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("All", x + width / 2, y + height / 2 + 1);
+    return;
+  }
+
+  const size = 13;
+  const prefix = concentrationPrefix(concentration);
+  setCanvasFont(ctx, size, 760);
+  const prefixWidth = ctx.measureText(prefix).width;
+  setCanvasFont(ctx, size * 0.72, 760);
+  const supWidth = ctx.measureText("-1").width;
+  const startX = x + (width - prefixWidth - supWidth - 1) / 2;
+  const baselineY = y + height / 2 + size * 0.36;
+
+  setCanvasFont(ctx, size, 760);
+  ctx.fillText(prefix, startX, baselineY);
+  setCanvasFont(ctx, size * 0.72, 760);
+  ctx.fillText("-1", startX + prefixWidth + 1, baselineY - size * 0.42);
+}
+
+function drawPhaseCanvasText(ctx, phase, x, y, size = 28, weight = 900) {
+  const components = phaseColorComponents(phase);
+  setCanvasFont(ctx, size, weight);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+
+  if (components.length > 1) {
+    let cursor = x;
+    components.forEach((component, index) => {
+      if (index > 0) {
+        ctx.fillStyle = pageExportTheme.ink;
+        ctx.fillText("+", cursor, y);
+        cursor += ctx.measureText("+").width;
+      }
+      const text = `${formatNumber(component.percent, 1)}%${component.label}`;
+      ctx.fillStyle = component.color;
+      ctx.fillText(text, cursor, y);
+      cursor += ctx.measureText(text).width;
+    });
+    return;
+  }
+
+  const label = phase && phase !== "-" ? phase : "No data";
+  ctx.fillStyle = colorForPhase(label);
+  ctx.fillText(label, x, y);
+}
+
+function drawPhaseLegendSwatchCanvas(ctx, key, x, y, radius = 9) {
+  if (key === "mixed") {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = mixedLegendColors.left;
+    ctx.fillRect(x - radius, y - radius, radius, radius * 2);
+    ctx.fillStyle = mixedLegendColors.right;
+    ctx.fillRect(x, y - radius, radius, radius * 2);
+    ctx.restore();
+    ctx.strokeStyle = "rgba(0,0,0,0.24)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    return;
+  }
+  ctx.fillStyle = palette[key];
+  ctx.strokeStyle = "rgba(0,0,0,0.18)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawPhaseChipCanvas(ctx, phase, x, y, width, height, size = 15) {
+  const components = phaseColorComponents(phase);
+  const phaseType = normalizePhase(phase);
+  const color = colorForPhase(phase);
+
+  if (components.length > 1) {
+    const gradient = ctx.createLinearGradient(x, y, x + width, y);
+    phaseGradientStops(phase, 0.42, true).forEach((stop) => {
+      gradient.addColorStop(clamp(stop.offset / 100, 0, 1), stop.color);
+    });
+    drawRoundRect(ctx, x, y, width, height, height / 2, gradient, palette.mixed, 1.4);
+  } else {
+    drawRoundRect(
+      ctx,
+      x,
+      y,
+      width,
+      height,
+      height / 2,
+      phaseType === "missing" ? color : hexToRgba(color, 0.16),
+      phaseType === "missing" ? color : hexToRgba(color, 0.6),
+      1.2,
+    );
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, width, height, height / 2);
+  else ctx.rect(x, y, width, height);
+  ctx.clip();
+  drawPhaseCanvasText(ctx, phase, x + 12, y + height / 2 + size * 0.36, size, 860);
+  ctx.restore();
+}
+
+function drawMetricChipCanvas(ctx, metricKey, sample, concentration, x, y, width, height) {
+  const entry = metricEntry(metricKey, sample, concentration);
+  const value = Number(entry?.value);
+  const text = formatMetricEntry(entry, false, metricKey);
+  const color = Number.isFinite(value)
+    ? colorForMetric(metricKey, value)
+    : metricPalettes[metricKey]?.missing || "#4A4A4A";
+  drawRoundRect(
+    ctx,
+    x,
+    y,
+    width,
+    height,
+    height / 2,
+    Number.isFinite(value) ? hexToRgba(color, 0.12) : color,
+    Number.isFinite(value) ? hexToRgba(color, 0.52) : color,
+    1,
+  );
+  setCanvasFont(ctx, 13, 820);
+  ctx.fillStyle = Number.isFinite(value) ? pageExportTheme.ink : "#ffffff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + width / 2, y + height / 2 + 1);
+}
+
+function svgDimensions(svg) {
+  const viewBox = String(svg.getAttribute("viewBox") || "").split(/\s+/).map(Number);
+  return {
+    width: Number(svg.getAttribute("width")) || viewBox[2] || plot.width,
+    height: Number(svg.getAttribute("height")) || viewBox[3] || plot.height,
+  };
+}
+
+async function svgCloneToImage(svg) {
+  const svgText = new XMLSerializer().serializeToString(svg);
+  const svgBlob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+  try {
+    return await loadImageFromUrl(url);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function drawControlsPanel(ctx, x, y, width) {
+  const sectionX = x + 24;
+  const innerW = width - 48;
+  let cursor = y + 48;
+  drawCardShadow(ctx, x, y, width, 1120);
+
+  drawSectionTitle(ctx, "Dataset", sectionX, cursor);
+  cursor += 18;
+  drawRoundRect(ctx, sectionX, cursor, innerW, 60, 8, "rgba(255,253,248,0.8)", pageExportTheme.line, 1);
+  drawButtonCanvas(ctx, "WW", sectionX + 8, cursor + 8, 78, 44, state.dataset === "WW");
+  drawButtonCanvas(ctx, "EW", sectionX + 96, cursor + 8, 78, 44, state.dataset === "EW");
+  cursor += 96;
+
+  drawSectionTitle(ctx, "Concentration", sectionX, cursor);
+  cursor += 18;
+  const buttonGap = 10;
+  const allW = 54;
+  const rowH = 44;
+  drawConcentrationButtonCanvas(ctx, "all", sectionX, cursor, allW, 38, state.visibleConcentration === "all");
+  drawConcentrationButtonCanvas(
+    ctx,
+    PHASE_DATA.concentrations[0],
+    sectionX + allW + buttonGap,
+    cursor,
+    innerW - allW - buttonGap,
+    38,
+    state.visibleConcentration === PHASE_DATA.concentrations[0],
+  );
+  PHASE_DATA.concentrations.slice(1).forEach((concentration, index) => {
+    const colW = (innerW - buttonGap) / 2;
+    const bx = sectionX + (index % 2) * (colW + buttonGap);
+    const by = cursor + rowH + Math.floor(index / 2) * rowH;
+    drawConcentrationButtonCanvas(ctx, concentration, bx, by, colW, 38, state.visibleConcentration === concentration);
+  });
+  cursor += 150;
+
+  drawSectionTitle(ctx, "Visualization", sectionX, cursor);
+  cursor += 18;
+  drawRoundRect(ctx, sectionX, cursor, innerW, 106, 8, "rgba(255,253,248,0.8)", pageExportTheme.line, 1);
+  metricModes.forEach(([label, key], index) => {
+    const bx = sectionX + 8 + (index % 2) * ((innerW - 24) / 2 + 8);
+    const by = cursor + 8 + Math.floor(index / 2) * 47;
+    drawButtonCanvas(ctx, label, bx, by, (innerW - 32) / 2, 38, state.visualization === key);
+  });
+  cursor += 142;
+
+  drawSectionTitle(ctx, "Interactive filters", sectionX, cursor);
+  cursor += 23;
+  valueFilterKeys.forEach((key) => {
+    setCanvasFont(ctx, 14, 780);
+    ctx.fillStyle = pageExportTheme.muted;
+    ctx.textAlign = "left";
+    ctx.fillText(`${key}%`, sectionX, cursor + 25);
+    const range = state.valueFilters[key] || defaultValueFilters[key];
+    drawRoundRect(ctx, sectionX + 82, cursor, 78, 36, 6, "#ffffff", pageExportTheme.line, 1);
+    drawRoundRect(ctx, sectionX + 180, cursor, 78, 36, 6, "#ffffff", pageExportTheme.line, 1);
+    setCanvasFont(ctx, 14, 760);
+    ctx.fillStyle = pageExportTheme.ink;
+    ctx.fillText(String(range.min), sectionX + 94, cursor + 24);
+    ctx.fillText("-", sectionX + 169, cursor + 24);
+    ctx.fillText(String(range.max), sectionX + 192, cursor + 24);
+    cursor += 44;
+  });
+  drawButtonCanvas(ctx, "Reset filters", sectionX, cursor + 5, innerW, 38, false);
+  cursor += 70;
+
+  drawSectionTitle(ctx, "Phase", sectionX, cursor);
+  cursor += 22;
+  const phaseButtons = [["All", "all"], ...phaseFamilies];
+  phaseButtons.forEach(([label, key], index) => {
+    const colW = (innerW - buttonGap) / 2;
+    const bx = sectionX + (index % 2) * (colW + buttonGap);
+    const by = cursor + Math.floor(index / 2) * 44;
+    const active = state.phaseFilter === key;
+    drawButtonCanvas(ctx, label, bx, by, key === "all" ? 58 : colW, 36, active);
+    if (key !== "all") drawPhaseLegendSwatchCanvas(ctx, key, bx + 16, by + 18, 5);
+  });
+  cursor += 190;
+
+  drawSectionTitle(ctx, "Navigation", sectionX, cursor);
+  cursor += 18;
+  drawRoundRect(ctx, sectionX, cursor, innerW, 58, 8, "rgba(255,253,248,0.8)", pageExportTheme.line, 1);
+  drawButtonCanvas(ctx, "Rotate", sectionX + 8, cursor + 8, 88, 42, state.dragMode === "rotate");
+  drawButtonCanvas(ctx, "Pan", sectionX + 110, cursor + 8, 78, 42, state.dragMode === "pan");
+
+  return y + 1120;
+}
+
+function drawTable(ctx, sample, x, y, width) {
+  const rowH = 58;
+  const headerH = 50;
+  const cols = [0, 150, 320, 420, 520];
+  const tableH = headerH + rowH * PHASE_DATA.concentrations.length;
+
+  drawRoundRect(ctx, x, y, width, tableH, 8, "#ffffff", pageExportTheme.line, 1);
+  setCanvasFont(ctx, 12, 820);
+  ctx.fillStyle = pageExportTheme.muted;
+  ctx.textAlign = "left";
+  ctx.fillText("Total", x + 16, y + 21);
+  ctx.fillText("concentration", x + 16, y + 36);
+  ctx.fillText("Phase", x + cols[1] + 16, y + 31);
+  ctx.fillText("EE%", x + cols[2] + 16, y + 31);
+  ctx.fillText("LC%", x + cols[3] + 16, y + 31);
+  ctx.fillText("IR-ratio%", x + cols[4] + 16, y + 31);
+
+  [...PHASE_DATA.concentrations].reverse().forEach((concentration, index) => {
+    const rowY = y + headerH + index * rowH;
+    ctx.fillStyle = concentration === state.concentration ? "rgba(15, 127, 121, 0.08)" : "#ffffff";
+    ctx.fillRect(x + 1, rowY, width - 2, rowH);
+    ctx.strokeStyle = pageExportTheme.line;
+    ctx.beginPath();
+    ctx.moveTo(x, rowY);
+    ctx.lineTo(x + width, rowY);
+    ctx.stroke();
+
+    setCanvasFont(ctx, 13, 520);
+    ctx.fillStyle = pageExportTheme.ink;
+    ctx.textAlign = "left";
+    drawConcentrationCanvas(ctx, concentration, x + 16, rowY + 35, 13, 520);
+    drawPhaseChipCanvas(ctx, sample.phases[concentration] || "-", x + cols[1] + 16, rowY + 15, 150, 28, 13);
+    drawMetricChipCanvas(ctx, "EE", sample, concentration, x + cols[2] + 16, rowY + 15, 70, 28);
+    drawMetricChipCanvas(ctx, "LC", sample, concentration, x + cols[3] + 16, rowY + 15, 70, 28);
+    drawMetricChipCanvas(ctx, "IR", sample, concentration, x + cols[4] + 16, rowY + 15, 76, 28);
+  });
+
+  return tableH;
+}
+
+function drawSpectrumCanvasPanel(ctx, image, title, status, x, y, width, imageWidth, imageHeight) {
+  const pad = 18;
+  const chartW = width - pad * 2;
+  const chartH = chartW * (imageHeight / imageWidth);
+  const panelH = 62 + chartH + 18;
+  drawRoundRect(ctx, x, y, width, panelH, 8, "#ffffff", pageExportTheme.line, 1);
+  setCanvasFont(ctx, 18, 850);
+  ctx.fillStyle = pageExportTheme.ink;
+  ctx.textAlign = "left";
+  ctx.fillText(title, x + pad, y + 34);
+  setCanvasFont(ctx, 13, 760);
+  ctx.fillStyle = pageExportTheme.muted;
+  ctx.textAlign = "right";
+  ctx.fillText(status, x + width - pad, y + 33);
+  ctx.drawImage(image, x + pad, y + 52, chartW, chartH);
+  return panelH;
+}
+
+function drawDetailPanel(ctx, sample, x, y, width, xrdImage, irImage) {
+  const phase = sample.phases[state.concentration] || "-";
+  const eeEntry = metricEntry("EE", sample, state.concentration);
+  const lcEntry = metricEntry("LC", sample, state.concentration);
+  const irEntry = metricEntry("IR", sample, state.concentration);
+  let cursor = y + 46;
+
+  drawCardShadow(ctx, x, y, width, 1740);
+  setCanvasFont(ctx, 13, 820);
+  ctx.fillStyle = pageExportTheme.accentDark;
+  ctx.textAlign = "left";
+  ctx.fillText(state.dataset, x + 24, cursor - 4);
+  setCanvasFont(ctx, 34, 880);
+  ctx.fillStyle = pageExportTheme.ink;
+  ctx.textAlign = "right";
+  ctx.fillText(`Sample ${sample.sample}`, x + width - 24, cursor);
+  cursor += 28;
+
+  drawRoundRect(ctx, x + 24, cursor, width - 48, 104, 8, pageExportTheme.surfaceStrong, pageExportTheme.line, 1);
+  ctx.fillStyle = pageExportTheme.muted;
+  drawConcentrationCanvas(ctx, state.concentration, x + 44, cursor + 35, 14, 800);
+  drawPhaseCanvasText(ctx, phase, x + 44, cursor + 78, 32, 900);
+  cursor += 124;
+
+  const cardW = (width - 60) / 2;
+  const metrics = [
+    ["M", `${formatNumber(sample.M)}%`],
+    ["L", `${formatNumber(sample.L)}%`],
+    ["BSA", `${formatNumber(sample.BSA)}%`],
+    ["L/M", formatNumber(sample.ratio)],
+    ["EE +/- error bar", formatMetricEntry(eeEntry, true, "EE")],
+    ["LC", formatMetricEntry(lcEntry, true, "LC")],
+  ];
+  metrics.forEach(([label, value], index) => {
+    const col = index % 2;
+    const row = Math.floor(index / 2);
+    const cx = x + 24 + col * (cardW + 12);
+    const cy = cursor + row * 86;
+    drawRoundRect(ctx, cx, cy, cardW, 74, 8, "#ffffff", pageExportTheme.line, 1);
+    setCanvasFont(ctx, 13, 820);
+    ctx.fillStyle = pageExportTheme.muted;
+    ctx.textAlign = "left";
+    ctx.fillText(label, cx + 14, cy + 24);
+    setCanvasFont(ctx, 24, 850);
+    ctx.fillStyle = pageExportTheme.ink;
+    ctx.fillText(value, cx + 14, cy + 56);
+  });
+  cursor += 260;
+  drawRoundRect(ctx, x + 24, cursor, width - 48, 74, 8, "#ffffff", pageExportTheme.line, 1);
+  setCanvasFont(ctx, 13, 820);
+  ctx.fillStyle = pageExportTheme.muted;
+  ctx.fillText("IR-ratio", x + 44, cursor + 24);
+  setCanvasFont(ctx, 24, 850);
+  ctx.fillStyle = pageExportTheme.ink;
+  ctx.fillText(formatMetricEntry(irEntry, true, "IR"), x + 44, cursor + 56);
+  cursor += 94;
+
+  cursor += drawTable(ctx, sample, x + 24, cursor, width - 48) + 22;
+  cursor += drawSpectrumCanvasPanel(ctx, xrdImage, "PXRD patterns", els.xrdStatus?.textContent || "", x + 24, cursor, width - 48, xrdPlot.width, xrdPlot.height) + 22;
+  cursor += drawSpectrumCanvasPanel(ctx, irImage, "ATR-IR spectrum", els.irStatus?.textContent || "", x + 24, cursor, width - 48, irPlot.width, irPlot.height);
+  return cursor + 24;
+}
+
+function drawHeader(ctx, x, y, width) {
+  setCanvasFont(ctx, 50, 880);
+  ctx.fillStyle = "#0c1b26";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText("ZIF Biocomposite Explorer App - Offline Version", x, y + 66);
+
+  setCanvasFont(ctx, 72, 500);
+  ctx.fillStyle = "#ffc33f";
+  ctx.strokeStyle = "#f0b400";
+  ctx.lineWidth = 4;
+  const logoX = x + 1220;
+  ctx.strokeText("PTC", logoX, y + 74);
+  ctx.fillText("PTC", logoX, y + 74);
+  setCanvasFont(ctx, 12, 700);
+  ctx.fillStyle = "#1d2528";
+  ctx.fillText("Institute of Physical and Theoretical Chemistry", logoX + 6, y + 96);
+
+  drawRoundRect(ctx, width - 268, y + 26, 216, 54, 8, "#07524f", "#07524f", 1);
+  setCanvasFont(ctx, 17, 850);
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Download Page PNG", width - 160, y + 54);
+}
+
+function drawPlotPanel(ctx, ternaryImage, x, y, width, imageWidth, imageHeight) {
+  const toolbarH = 76;
+  const pad = 18;
+  const imageW = width - pad * 2;
+  const imageH = imageW * (imageHeight / imageWidth);
+  const panelH = toolbarH + imageH + pad;
+
+  drawCardShadow(ctx, x, y, width, panelH);
+  drawRoundRect(ctx, x, y, width, panelH, 8, "rgba(0,0,0,0)", "rgba(143, 129, 109, 0.34)", 1);
+  drawRoundRect(ctx, x, y, width, toolbarH, 8, "#ffffff", "", 0);
+  setCanvasFont(ctx, 15, 800);
+  ctx.fillStyle = pageExportTheme.muted;
+  ctx.textAlign = "left";
+  ctx.fillText(state.visualization === "phase" ? "Phase ternary diagram" : `${state.visualization} ternary diagram`, x + 22, y + 44);
+  drawButtonCanvas(ctx, "Reset View", x + width - 260, y + 22, 112, 40, false);
+  drawButtonCanvas(ctx, "Download PNG", x + width - 138, y + 22, 116, 40, true);
+  drawGridBackground(ctx, x + 1, y + toolbarH, width - 2, imageH + pad - 1, 38);
+  ctx.drawImage(ternaryImage, x + pad, y + toolbarH, imageW, imageH);
+  return panelH;
+}
+
+async function downloadPagePng() {
+  const button = els.downloadPagePng;
+  const previousLabel = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Rendering...";
+  }
+
+  try {
+    await waitForPageAssets();
+    const sample = currentSample();
+    if (!sample) throw new Error("No selected sample is available.");
+
+    const ternaryClone = cloneSvgForFullExport();
+    const ternaryDims = svgDimensions(ternaryClone);
+    const xrdClone = cloneSpectrumSvg(els.xrdPlot, xrdPlot.width, xrdPlot.height);
+    const irClone = cloneSpectrumSvg(els.irPlot, irPlot.width, irPlot.height);
+    const [ternaryImage, xrdImage, irImage] = await Promise.all([
+      svgCloneToImage(ternaryClone),
+      svgCloneToImage(xrdClone),
+      svgCloneToImage(irClone),
+    ]);
+
+    const layout = {
+      margin: 52,
+      gap: 24,
+      headerH: 126,
+      leftW: 340,
+      midW: 1060,
+      rightW: 620,
+      scale: 2,
+    };
+    const width = layout.margin * 2 + layout.leftW + layout.midW + layout.rightW + layout.gap * 2;
+    const xLeft = layout.margin;
+    const xMid = xLeft + layout.leftW + layout.gap;
+    const xRight = xMid + layout.midW + layout.gap;
+    const yMain = layout.headerH + 20;
+    const midHeight = 76 + (layout.midW - 36) * (ternaryDims.height / ternaryDims.width) + 18;
+    const rightHeight = 1740;
+    const height = Math.ceil(Math.max(yMain + midHeight, yMain + rightHeight, yMain + 1120) + 54);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width * layout.scale;
+    canvas.height = height * layout.scale;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("The page canvas could not be created.");
+    ctx.scale(layout.scale, layout.scale);
+    ctx.fillStyle = pageExportTheme.bg;
+    ctx.fillRect(0, 0, width, height);
+
+    drawHeader(ctx, layout.margin, 12, width);
+    drawControlsPanel(ctx, xLeft, yMain, layout.leftW);
+    drawPlotPanel(ctx, ternaryImage, xMid, yMain, layout.midW, ternaryDims.width, ternaryDims.height);
+    drawDetailPanel(ctx, sample, xRight, yMain, layout.rightW, xrdImage, irImage);
+
+    const blob = await canvasToBlob(canvas);
+    const dpiBlob = await pngWithDpi(blob, 300);
+    downloadBlob(dpiBlob, `ZIF-biocomposite-page-${state.dataset}-sample-${state.sample}.png`);
+  } catch (error) {
+    console.error(error);
+    window.alert(`Page PNG export failed: ${error.message || error}`);
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousLabel;
+    }
+  }
+}
+
 function bindEvents() {
   els.tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
@@ -2537,6 +3268,7 @@ function bindEvents() {
   });
 
   els.downloadPng.addEventListener("click", downloadPng);
+  els.downloadPagePng?.addEventListener("click", downloadPagePng);
   els.xrdZoomIn?.addEventListener("click", () => setSpectrumZoom("xrd", state.xrdZoom * 1.4));
   els.xrdZoomOut?.addEventListener("click", () => setSpectrumZoom("xrd", state.xrdZoom / 1.4));
   els.irZoomIn?.addEventListener("click", () => setSpectrumZoom("ir", state.irZoom * 1.4));
@@ -2547,6 +3279,7 @@ function bindEvents() {
   els.irDownloadCsv?.addEventListener("click", downloadIrCsv);
   els.xrdDownloadPng?.addEventListener("click", () => downloadSpectrumPng("xrd"));
   els.irDownloadPng?.addEventListener("click", () => downloadSpectrumPng("ir"));
+  bindLegendDockResize();
   bindRotation();
   bindSpectrumPan(els.xrdPlot, "xrd");
   bindSpectrumPan(els.irPlot, "ir");

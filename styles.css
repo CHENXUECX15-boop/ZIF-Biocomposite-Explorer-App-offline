@@ -44,9 +44,37 @@ input {
 
 .app-header {
   display: flex;
-  align-items: end;
-  justify-content: flex-start;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
   padding: 28px clamp(18px, 3vw, 44px) 18px;
+}
+
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+}
+
+.ptc-logo-link {
+  display: inline-flex;
+  align-items: center;
+  width: clamp(160px, 13vw, 220px);
+  padding: 4px 0;
+  line-height: 0;
+}
+
+.ptc-logo-link img {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: auto;
+}
+
+.page-download-button {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .eyebrow {
@@ -182,12 +210,20 @@ h2 {
 
 .filter-button .phase-dot {
   display: inline-block;
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   margin-right: 6px;
   border: 1px solid rgba(0, 0, 0, 0.18);
   border-radius: 50%;
   vertical-align: -1px;
+}
+
+.mixed-legend-swatch {
+  overflow: visible;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  shape-rendering: geometricPrecision;
 }
 
 .range-filter-grid {
@@ -310,6 +346,15 @@ h2 {
 }
 
 .phase-legend-dock {
+  --legend-width: min(720px, calc(100% - 220px));
+  --legend-font-size: 16px;
+  --legend-gap: 18px;
+  --legend-item-gap: 7px;
+  --legend-padding-x: 18px;
+  --legend-padding-y: 10px;
+  --legend-swatch-size: 16px;
+  --metric-label-width: 228px;
+  --metric-scale-width: 260px;
   position: absolute;
   left: 50%;
   bottom: 30px;
@@ -318,9 +363,10 @@ h2 {
   flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  width: min(720px, calc(100% - 220px));
-  padding: 10px 18px;
+  gap: var(--legend-gap);
+  width: var(--legend-width);
+  max-width: calc(100% - 40px);
+  padding: var(--legend-padding-y) var(--legend-padding-x);
   border: 1px solid rgba(116, 107, 92, 0.28);
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.94);
@@ -342,30 +388,35 @@ h2 {
 
 .phase-legend-dock .legend-item,
 .phase-legend-dock .metric-legend {
-  font-size: 16px;
+  font-size: var(--legend-font-size);
+}
+
+.phase-legend-dock .legend-item {
+  gap: var(--legend-item-gap);
 }
 
 .phase-legend-dock .metric-legend {
   width: 100%;
   min-width: 0;
+  gap: var(--legend-item-gap);
 }
 
 .phase-legend-dock .metric-label {
-  flex: 0 0 228px;
+  flex: 0 0 var(--metric-label-width);
   text-align: left;
 }
 
 .phase-legend-dock .legend-swatch,
 .phase-legend-dock .metric-missing {
-  width: 16px;
-  height: 16px;
+  width: var(--legend-swatch-size);
+  height: var(--legend-swatch-size);
 }
 
 .phase-legend-dock .metric-scale {
-  flex: 1 1 180px;
-  width: auto;
-  max-width: 260px;
-  height: 16px;
+  flex: 1 1 var(--metric-scale-width);
+  width: var(--metric-scale-width);
+  max-width: var(--metric-scale-width);
+  height: var(--legend-swatch-size);
 }
 
 .figure-actions {

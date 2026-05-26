@@ -34,15 +34,26 @@ const metricModes = [
   ["EE%", "EE"],
   ["LC%", "LC"],
   ["IR-ratio%", "IR"],
+  ["Amorphous fraction%", "AF"],
 ];
 
 const metricPalettes = {
   EE: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
   LC: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
   IR: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
+  AF: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
 };
 
-const valueFilterKeys = ["M", "L", "BSA", "EE", "LC"];
+const valueFilterKeys = ["M", "L", "BSA", "EE", "LC", "IR", "AF"];
+const valueFilterLabels = {
+  M: "M%",
+  L: "L%",
+  BSA: "BSA%",
+  EE: "EE%",
+  LC: "LC%",
+  IR: "IR-ratio%",
+  AF: "Amorphous fraction%",
+};
 
 const defaultValueFilters = Object.freeze({
   M: Object.freeze({ min: 0, max: 100 }),
@@ -50,6 +61,8 @@ const defaultValueFilters = Object.freeze({
   BSA: Object.freeze({ min: 0, max: 100 }),
   EE: Object.freeze({ min: 0, max: 100 }),
   LC: Object.freeze({ min: 0, max: 100 }),
+  IR: Object.freeze({ min: 0, max: 100 }),
+  AF: Object.freeze({ min: 0, max: 100 }),
 });
 
 const plot = {
@@ -139,6 +152,7 @@ const els = {
   detailEE: document.getElementById("detailEE"),
   detailLC: document.getElementById("detailLC"),
   detailIR: document.getElementById("detailIR"),
+  detailAF: document.getElementById("detailAF"),
   phaseRows: document.getElementById("phaseRows"),
   xrdPlot: document.getElementById("xrdPlot"),
   xrdLegend: document.getElementById("xrdLegend"),
@@ -472,7 +486,7 @@ function formatMetricEntry(entry, includeError = true, metricKey = "") {
   const value = Number(entry?.value);
   if (!Number.isFinite(value)) return "-";
 
-  const base = ["EE", "LC", "IR"].includes(metricKey) ? `${value.toFixed(1)}%` : `${formatNumber(value, 1)}%`;
+  const base = ["EE", "LC", "IR", "AF"].includes(metricKey) ? `${value.toFixed(1)}%` : `${formatNumber(value, 1)}%`;
   const error = Number(entry?.error);
   if (includeError && Number.isFinite(error)) {
     return `${base} +/- ${formatNumber(error, 1)}%`;
@@ -554,6 +568,39 @@ function valueFiltersMatch(sample, concentration) {
   return valueFilterKeys.every((key) => valueMatchesFilter(key, sample, concentration));
 }
 
+function selectedPhaseFilters() {
+  if (Array.isArray(state.phaseFilter)) return state.phaseFilter;
+  if (!state.phaseFilter || state.phaseFilter === "all") return [];
+  return [state.phaseFilter];
+}
+
+function phaseFilterIsAll() {
+  return selectedPhaseFilters().length === 0;
+}
+
+function phaseFilterButtonActive(key) {
+  return key === "all" ? phaseFilterIsAll() : selectedPhaseFilters().includes(key);
+}
+
+function nextPhaseFilter(currentFilter, clickedKey) {
+  if (clickedKey === "all") return "all";
+
+  const current = Array.isArray(currentFilter)
+    ? currentFilter
+    : !currentFilter || currentFilter === "all"
+      ? []
+      : [currentFilter];
+  const next = new Set(current);
+  if (next.has(clickedKey)) {
+    next.delete(clickedKey);
+  } else {
+    next.add(clickedKey);
+  }
+
+  if (!next.size) return "all";
+  return phaseFamilies.map(([, key]) => key).filter((key) => next.has(key));
+}
+
 function activeConcentrations() {
   return PHASE_DATA.concentrations
     .map((concentration, index) => ({ concentration, index }))
@@ -565,7 +612,8 @@ function activeConcentrations() {
 }
 
 function phaseMatches(phase) {
-  return state.phaseFilter === "all" || normalizePhase(phase) === state.phaseFilter;
+  const activeFilters = selectedPhaseFilters();
+  return !activeFilters.length || activeFilters.includes(normalizePhase(phase));
 }
 
 function visibleSamplesFor(concentration) {
@@ -1294,7 +1342,7 @@ function renderXrdPlot(sample) {
 
   [0, 1, 2].forEach((index) => {
     const stack = xrdStackGeometry(geometry, index, 3);
-    const labelY = Math.min(stack.baseline + 14, geometry.top + geometry.height - 8);
+    const labelY = stack.baseline - 4;
     nodes.push(
       createSvgElement("line", {
         class: "xrd-grid-line",
@@ -1810,6 +1858,7 @@ function updateDetail() {
   const eeEntry = metricEntry("EE", sample, state.concentration);
   const lcEntry = metricEntry("LC", sample, state.concentration);
   const irEntry = metricEntry("IR", sample, state.concentration);
+  const afEntry = metricEntry("AF", sample, state.concentration);
 
   els.detailDataset.textContent = state.dataset;
   els.detailTitle.textContent = `Sample ${sample.sample}`;
@@ -1822,6 +1871,7 @@ function updateDetail() {
   els.detailEE.textContent = formatMetricEntry(eeEntry, true, "EE");
   els.detailLC.textContent = formatMetricEntry(lcEntry, true, "LC");
   if (els.detailIR) els.detailIR.textContent = formatMetricEntry(irEntry, true, "IR");
+  if (els.detailAF) els.detailAF.textContent = formatMetricEntry(afEntry, true, "AF");
   renderXrdPlot(sample);
   renderIrPlot(sample);
 
@@ -1854,7 +1904,10 @@ function updateDetail() {
       const irCell = document.createElement("td");
       irCell.append(createMetricChip("IR", sample, concentration));
 
-      row.append(concentrationCell, phaseCell, eeCell, lcCell, irCell);
+      const afCell = document.createElement("td");
+      afCell.append(createMetricChip("AF", sample, concentration));
+
+      row.append(concentrationCell, phaseCell, eeCell, lcCell, irCell, afCell);
       return row;
     }),
   );
@@ -1975,7 +2028,9 @@ function updateControlStates() {
     );
   });
   els.phaseFilters.querySelectorAll("[data-phase-filter]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.phaseFilter === state.phaseFilter);
+    const active = phaseFilterButtonActive(button.dataset.phaseFilter);
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
   });
   els.visualizationFilters.querySelectorAll("[data-visualization]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.visualization === state.visualization);
@@ -2843,8 +2898,9 @@ async function svgCloneToImage(svg) {
 function drawControlsPanel(ctx, x, y, width) {
   const sectionX = x + 24;
   const innerW = width - 48;
+  const panelHeight = 1210;
   let cursor = y + 48;
-  drawCardShadow(ctx, x, y, width, 1120);
+  drawCardShadow(ctx, x, y, width, panelHeight);
 
   drawSectionTitle(ctx, "Dataset", sectionX, cursor);
   cursor += 18;
@@ -2886,21 +2942,21 @@ function drawControlsPanel(ctx, x, y, width) {
   });
   cursor += 142;
 
-  drawSectionTitle(ctx, "Interactive filters", sectionX, cursor);
+  drawSectionTitle(ctx, "Filters", sectionX, cursor);
   cursor += 23;
   valueFilterKeys.forEach((key) => {
     setCanvasFont(ctx, 14, 780);
     ctx.fillStyle = pageExportTheme.muted;
     ctx.textAlign = "left";
-    ctx.fillText(`${key}%`, sectionX, cursor + 25);
+    ctx.fillText(valueFilterLabels[key] || `${key}%`, sectionX, cursor + 25);
     const range = state.valueFilters[key] || defaultValueFilters[key];
-    drawRoundRect(ctx, sectionX + 82, cursor, 78, 36, 6, "#ffffff", pageExportTheme.line, 1);
-    drawRoundRect(ctx, sectionX + 180, cursor, 78, 36, 6, "#ffffff", pageExportTheme.line, 1);
+    drawRoundRect(ctx, sectionX + 108, cursor, 72, 36, 6, "#ffffff", pageExportTheme.line, 1);
+    drawRoundRect(ctx, sectionX + 198, cursor, 72, 36, 6, "#ffffff", pageExportTheme.line, 1);
     setCanvasFont(ctx, 14, 760);
     ctx.fillStyle = pageExportTheme.ink;
-    ctx.fillText(String(range.min), sectionX + 94, cursor + 24);
-    ctx.fillText("-", sectionX + 169, cursor + 24);
-    ctx.fillText(String(range.max), sectionX + 192, cursor + 24);
+    ctx.fillText(String(range.min), sectionX + 120, cursor + 24);
+    ctx.fillText("-", sectionX + 187, cursor + 24);
+    ctx.fillText(String(range.max), sectionX + 210, cursor + 24);
     cursor += 44;
   });
   drawButtonCanvas(ctx, "Reset filters", sectionX, cursor + 5, innerW, 38, false);
@@ -2913,7 +2969,7 @@ function drawControlsPanel(ctx, x, y, width) {
     const colW = (innerW - buttonGap) / 2;
     const bx = sectionX + (index % 2) * (colW + buttonGap);
     const by = cursor + Math.floor(index / 2) * 44;
-    const active = state.phaseFilter === key;
+    const active = phaseFilterButtonActive(key);
     drawButtonCanvas(ctx, label, bx, by, key === "all" ? 58 : colW, 36, active);
     if (key !== "all") drawPhaseLegendSwatchCanvas(ctx, key, bx + 16, by + 18, 5);
   });
@@ -2925,7 +2981,7 @@ function drawControlsPanel(ctx, x, y, width) {
   drawButtonCanvas(ctx, "Rotate", sectionX + 8, cursor + 8, 88, 42, state.dragMode === "rotate");
   drawButtonCanvas(ctx, "Pan", sectionX + 110, cursor + 8, 78, 42, state.dragMode === "pan");
 
-  return y + 1120;
+  return y + panelHeight;
 }
 
 function drawTable(ctx, sample, x, y, width) {
@@ -2991,6 +3047,7 @@ function drawDetailPanel(ctx, sample, x, y, width, xrdImage, irImage) {
   const eeEntry = metricEntry("EE", sample, state.concentration);
   const lcEntry = metricEntry("LC", sample, state.concentration);
   const irEntry = metricEntry("IR", sample, state.concentration);
+  const afEntry = metricEntry("AF", sample, state.concentration);
   let cursor = y + 46;
 
   drawCardShadow(ctx, x, y, width, 1740);
@@ -3034,13 +3091,20 @@ function drawDetailPanel(ctx, sample, x, y, width, xrdImage, irImage) {
     ctx.fillText(value, cx + 14, cy + 56);
   });
   cursor += 260;
-  drawRoundRect(ctx, x + 24, cursor, width - 48, 74, 8, "#ffffff", pageExportTheme.line, 1);
-  setCanvasFont(ctx, 13, 820);
-  ctx.fillStyle = pageExportTheme.muted;
-  ctx.fillText("IR-ratio", x + 44, cursor + 24);
-  setCanvasFont(ctx, 24, 850);
-  ctx.fillStyle = pageExportTheme.ink;
-  ctx.fillText(formatMetricEntry(irEntry, true, "IR"), x + 44, cursor + 56);
+  [
+    ["IR-ratio", formatMetricEntry(irEntry, true, "IR")],
+    ["Amorphous fraction", formatMetricEntry(afEntry, true, "AF")],
+  ].forEach(([label, value], index) => {
+    const cx = x + 24 + index * (cardW + 12);
+    drawRoundRect(ctx, cx, cursor, cardW, 74, 8, "#ffffff", pageExportTheme.line, 1);
+    setCanvasFont(ctx, 13, 820);
+    ctx.fillStyle = pageExportTheme.muted;
+    ctx.textAlign = "left";
+    ctx.fillText(label, cx + 14, cursor + 24);
+    setCanvasFont(ctx, 24, 850);
+    ctx.fillStyle = pageExportTheme.ink;
+    ctx.fillText(value, cx + 14, cursor + 56);
+  });
   cursor += 94;
 
   cursor += drawTable(ctx, sample, x + 24, cursor, width - 48) + 22;
@@ -3096,61 +3160,285 @@ function drawPlotPanel(ctx, ternaryImage, x, y, width, imageWidth, imageHeight) 
   return panelH;
 }
 
+function waitForAnimationFrames(count = 2) {
+  return new Promise((resolve) => {
+    const step = () => {
+      count -= 1;
+      if (count <= 0) resolve();
+      else window.requestAnimationFrame(step);
+    };
+    window.requestAnimationFrame(step);
+  });
+}
+
+function waitForVideoFrame(video) {
+  return new Promise((resolve) => {
+    if ("requestVideoFrameCallback" in video) {
+      video.requestVideoFrameCallback(() => resolve());
+    } else {
+      window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
+    }
+  });
+}
+
+function captureStops(total, viewport) {
+  const max = Math.max(0, total - viewport);
+  if (max <= 0) return [0];
+
+  const stops = [];
+  for (let value = 0; value < max; value += viewport) {
+    stops.push(value);
+  }
+  if (stops.at(-1) !== max) stops.push(max);
+  return stops;
+}
+
+function pageScrollSize() {
+  const root = document.documentElement;
+  const body = document.body;
+  return {
+    width: Math.ceil(Math.max(root.scrollWidth, body.scrollWidth, root.clientWidth, window.innerWidth)),
+    height: Math.ceil(Math.max(root.scrollHeight, body.scrollHeight, root.clientHeight, window.innerHeight)),
+  };
+}
+
+function ensurePageCaptureStyle() {
+  let style = document.getElementById("pageCaptureStyle");
+  if (style) return style;
+
+  style = document.createElement("style");
+  style.id = "pageCaptureStyle";
+  style.textContent = `
+    html.is-page-capturing,
+    body.is-page-capturing {
+      scrollbar-width: none !important;
+    }
+
+    html.is-page-capturing::-webkit-scrollbar,
+    body.is-page-capturing::-webkit-scrollbar,
+    html.is-page-capturing *::-webkit-scrollbar {
+      width: 0 !important;
+      height: 0 !important;
+    }
+
+    body.is-page-capturing .controls-panel {
+      position: static !important;
+      top: auto !important;
+    }
+
+    body.is-page-capturing .page-download-button {
+      pointer-events: none !important;
+    }
+
+    body.is-page-capturing .xrd-panel {
+      overflow: visible !important;
+    }
+
+    body.is-page-capturing .xrd-heading {
+      display: grid !important;
+      grid-template-columns: max-content max-content !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 12px !important;
+      min-width: 0 !important;
+    }
+
+    body.is-page-capturing .xrd-heading h3,
+    body.is-page-capturing .xrd-heading span,
+    body.is-page-capturing .spectrum-toolbar {
+      white-space: nowrap !important;
+    }
+
+    body.is-page-capturing .spectrum-toolbar {
+      display: grid !important;
+      grid-auto-flow: column !important;
+      grid-auto-columns: max-content !important;
+      align-items: center !important;
+      justify-content: end !important;
+      gap: 5px !important;
+    }
+
+    body.is-page-capturing .spectrum-button {
+      appearance: none !important;
+      -webkit-appearance: none !important;
+      box-sizing: border-box !important;
+      display: inline-grid !important;
+      place-items: center !important;
+      min-width: 34px !important;
+      height: 24px !important;
+      padding: 0 7px !important;
+      line-height: 1 !important;
+    }
+
+    body.is-page-capturing .spectrum-button.icon-button {
+      width: 24px !important;
+      min-width: 24px !important;
+      padding: 0 !important;
+    }
+  `;
+  document.head.append(style);
+  return style;
+}
+
+async function startPageCaptureStream() {
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    throw new Error("This browser does not support page capture. Please use Chrome or Edge.");
+  }
+
+  const stream = await navigator.mediaDevices.getDisplayMedia({
+    video: {
+      displaySurface: "browser",
+      preferCurrentTab: true,
+      selfBrowserSurface: "include",
+      surfaceSwitching: "exclude",
+      width: { ideal: 3840 },
+      height: { ideal: 2160 },
+      frameRate: { ideal: 5, max: 10 },
+    },
+    audio: false,
+  });
+  const [track] = stream.getVideoTracks();
+  const surface = track?.getSettings?.().displaySurface;
+  if (surface && surface !== "browser") {
+    stream.getTracks().forEach((item) => item.stop());
+    throw new Error("Please choose the current browser tab / This tab, not a window or screen.");
+  }
+
+  const video = document.createElement("video");
+  video.muted = true;
+  video.playsInline = true;
+  video.srcObject = stream;
+  await new Promise((resolve, reject) => {
+    video.onloadedmetadata = resolve;
+    video.onerror = () => reject(new Error("The browser capture stream could not be loaded."));
+  });
+  await video.play();
+  await waitForVideoFrame(video);
+  return { stream, video };
+}
+
+async function stitchCurrentPageFromCapture(video) {
+  ensurePageCaptureStyle();
+  document.documentElement.classList.add("is-page-capturing");
+  document.body.classList.add("is-page-capturing");
+  await waitForAnimationFrames(3);
+
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const { width, height } = pageScrollSize();
+  const scaleX = video.videoWidth / viewportWidth || window.devicePixelRatio || 1;
+  const scaleY = video.videoHeight / viewportHeight || window.devicePixelRatio || 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(width * scaleX);
+  canvas.height = Math.ceil(height * scaleY);
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("The stitched page canvas could not be created.");
+
+  context.fillStyle = pageExportTheme.bg;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const xStops = captureStops(width, viewportWidth);
+  const yStops = captureStops(height, viewportHeight);
+  const visited = new Set();
+
+  for (const y of yStops) {
+    for (const x of xStops) {
+      window.scrollTo(x, y);
+      await waitForAnimationFrames(3);
+      await waitForVideoFrame(video);
+
+      const actualX = Math.round(window.scrollX);
+      const actualY = Math.round(window.scrollY);
+      const key = `${actualX},${actualY}`;
+      if (visited.has(key)) continue;
+      visited.add(key);
+
+      context.drawImage(
+        video,
+        0,
+        0,
+        video.videoWidth,
+        video.videoHeight,
+        Math.round(actualX * scaleX),
+        Math.round(actualY * scaleY),
+        video.videoWidth,
+        video.videoHeight,
+      );
+    }
+  }
+
+  return canvas;
+}
+
+function pageExportScale() {
+  const deviceScale = Number(window.devicePixelRatio) || 1;
+  return Math.min(3, Math.max(2, deviceScale));
+}
+
+async function renderCurrentPageWithHtml2Canvas() {
+  const renderer = window.html2canvas;
+  if (typeof renderer !== "function") {
+    throw new Error("The offline page renderer is missing. Please refresh the page and make sure vendor/html2canvas.min.js is present.");
+  }
+
+  ensurePageCaptureStyle();
+  document.documentElement.classList.add("is-page-capturing");
+  document.body.classList.add("is-page-capturing");
+  window.scrollTo(0, 0);
+  await waitForAnimationFrames(3);
+
+  const { width, height } = pageScrollSize();
+  const options = {
+    backgroundColor: pageExportTheme.bg,
+    scale: pageExportScale(),
+    useCORS: true,
+    allowTaint: false,
+    logging: false,
+    imageTimeout: 15000,
+    scrollX: 0,
+    scrollY: 0,
+    x: 0,
+    y: 0,
+    width,
+    height,
+    windowWidth: width,
+    windowHeight: height,
+    onclone: (clonedDocument) => {
+      clonedDocument.documentElement.classList.add("is-page-capturing");
+      clonedDocument.body.classList.add("is-page-capturing");
+      const clonedButton = clonedDocument.getElementById("downloadPagePng");
+      if (clonedButton) {
+        clonedButton.disabled = false;
+        clonedButton.textContent = "Download Page PNG";
+      }
+    },
+  };
+
+  try {
+    return await renderer(document.body, { ...options, foreignObjectRendering: true });
+  } catch (error) {
+    console.warn("Foreign-object page export failed; retrying with canvas renderer.", error);
+    return renderer(document.body, options);
+  }
+}
+
 async function downloadPagePng() {
   const button = els.downloadPagePng;
   const previousLabel = button?.textContent;
+  const previousScroll = { x: window.scrollX, y: window.scrollY };
+
   if (button) {
     button.disabled = true;
-    button.textContent = "Rendering...";
+    button.textContent = "Rendering page...";
   }
 
   try {
     await waitForPageAssets();
-    const sample = currentSample();
-    if (!sample) throw new Error("No selected sample is available.");
-
-    const ternaryClone = cloneSvgForFullExport();
-    const ternaryDims = svgDimensions(ternaryClone);
-    const xrdClone = cloneSpectrumSvg(els.xrdPlot, xrdPlot.width, xrdPlot.height);
-    const irClone = cloneSpectrumSvg(els.irPlot, irPlot.width, irPlot.height);
-    const [ternaryImage, xrdImage, irImage] = await Promise.all([
-      svgCloneToImage(ternaryClone),
-      svgCloneToImage(xrdClone),
-      svgCloneToImage(irClone),
-    ]);
-
-    const layout = {
-      margin: 52,
-      gap: 24,
-      headerH: 126,
-      leftW: 340,
-      midW: 1060,
-      rightW: 620,
-      scale: 2,
-    };
-    const width = layout.margin * 2 + layout.leftW + layout.midW + layout.rightW + layout.gap * 2;
-    const xLeft = layout.margin;
-    const xMid = xLeft + layout.leftW + layout.gap;
-    const xRight = xMid + layout.midW + layout.gap;
-    const yMain = layout.headerH + 20;
-    const midHeight = 76 + (layout.midW - 36) * (ternaryDims.height / ternaryDims.width) + 18;
-    const rightHeight = 1740;
-    const height = Math.ceil(Math.max(yMain + midHeight, yMain + rightHeight, yMain + 1120) + 54);
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width * layout.scale;
-    canvas.height = height * layout.scale;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("The page canvas could not be created.");
-    ctx.scale(layout.scale, layout.scale);
-    ctx.fillStyle = pageExportTheme.bg;
-    ctx.fillRect(0, 0, width, height);
-
-    drawHeader(ctx, layout.margin, 12, width);
-    drawControlsPanel(ctx, xLeft, yMain, layout.leftW);
-    drawPlotPanel(ctx, ternaryImage, xMid, yMain, layout.midW, ternaryDims.width, ternaryDims.height);
-    drawDetailPanel(ctx, sample, xRight, yMain, layout.rightW, xrdImage, irImage);
-
+    const canvas = await renderCurrentPageWithHtml2Canvas();
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Saving PNG...";
+    }
     const blob = await canvasToBlob(canvas);
     const dpiBlob = await pngWithDpi(blob, 300);
     downloadBlob(dpiBlob, `ZIF-biocomposite-page-${state.dataset}-sample-${state.sample}.png`);
@@ -3158,6 +3446,9 @@ async function downloadPagePng() {
     console.error(error);
     window.alert(`Page PNG export failed: ${error.message || error}`);
   } finally {
+    document.documentElement.classList.remove("is-page-capturing");
+    document.body.classList.remove("is-page-capturing");
+    window.scrollTo(previousScroll.x, previousScroll.y);
     if (button) {
       button.disabled = false;
       button.textContent = previousLabel;
@@ -3201,7 +3492,7 @@ function bindEvents() {
 
     state = {
       ...state,
-      phaseFilter: button.dataset.phaseFilter,
+      phaseFilter: nextPhaseFilter(state.phaseFilter, button.dataset.phaseFilter),
     };
     syncSelectionToVisibleData();
     updateControlStates();

@@ -1839,7 +1839,7 @@ function stylePhaseChip(chip, phase) {
   chip.classList.toggle("is-mixed-phase", phaseColorComponents(phase).length > 1);
 
   if (phaseColorComponents(phase).length > 1) {
-    chip.style.background = phaseGradientCss(phase, 0.42, true);
+    chip.style.background = phaseGradientCss(phase, 0.15, true);
     chip.style.borderColor = palette.mixed;
     chip.style.color = "#172124";
     return;

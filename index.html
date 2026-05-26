@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Phase Ternary Stack</title>
-    <link rel="stylesheet" href="styles.css?v=20260525-ptc-tu-logo" />
+    <link rel="stylesheet" href="styles.css?v=20260526-page-logo-export" />
   </head>
   <body>
     <header class="app-header">
@@ -18,14 +18,19 @@
           aria-label="Open PTC Institute homepage"
         >
           <span class="ptc-logo-lockup">
-            <span class="ptc-mark-crop" aria-hidden="true">
-              <img src="assets/ptc-logo-source.png" alt="" />
+            <span class="ptc-mark" aria-hidden="true">
+              <svg viewBox="0 0 120 72" role="presentation" focusable="false">
+                <path class="ptc-mark-bar" d="M0 34h120v8H0z" />
+                <path class="ptc-mark-hex" d="M40 8h40l20 30-20 30H40L20 38z" />
+                <path class="ptc-mark-face" d="M43 20h34l12 18-12 18H43L31 38z" />
+                <circle class="ptc-mark-core" cx="60" cy="38" r="16" />
+                <circle class="ptc-mark-glint" cx="53" cy="31" r="5" />
+              </svg>
             </span>
-            <img
-              class="ptc-wordmark"
-              src="assets/ptc-logo-transparent.png"
-              alt="PTC Institute of Physical and Theoretical Chemistry"
-            />
+            <span class="ptc-wordmark" aria-label="PTC Institute of Physical and Theoretical Chemistry">
+              <span class="ptc-letters">PTC</span>
+              <span class="ptc-institute">Institute of Physical and Theoretical Chemistry</span>
+            </span>
           </span>
           <span class="ptc-university-text">GRAZ UNIVERSITY OF TECHNOLOGY</span>
         </a>
@@ -266,7 +271,7 @@
     <script src="data/phase-data.js"></script>
     <script src="data/metrics-data.js"></script>
     <script src="data/ir-ratio-data.js"></script>
-    <script src="amorphous-fraction-data.js"></script>
+    <script src="data/amorphous-fraction-data.js"></script>
     <script src="data/xrd-data.js"></script>
     <script src="data/ir-data.js"></script>
     <script src="vendor/html2canvas.min.js"></script>

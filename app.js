@@ -3221,12 +3221,64 @@ function ensurePageCaptureStyle() {
       height: 0 !important;
     }
 
+    body.is-page-capturing .app-header {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) max-content !important;
+      align-items: center !important;
+      gap: 18px !important;
+    }
+
+    body.is-page-capturing .title-row {
+      display: grid !important;
+      grid-template-columns: minmax(0, max-content) max-content !important;
+      align-items: center !important;
+      justify-content: start !important;
+      gap: 18px !important;
+      min-width: 0 !important;
+    }
+
+    body.is-page-capturing .title-row h1 {
+      min-width: 0 !important;
+      white-space: nowrap !important;
+    }
+
+    body.is-page-capturing .ptc-logo-link {
+      display: inline-flex !important;
+      flex-wrap: nowrap !important;
+      max-width: none !important;
+      min-width: 0 !important;
+      justify-self: start !important;
+    }
+
+    body.is-page-capturing .ptc-logo-lockup {
+      flex: 0 0 auto !important;
+    }
+
+    body.is-page-capturing .ptc-mark {
+      width: 76px !important;
+      height: 45.6px !important;
+    }
+
+    body.is-page-capturing .ptc-wordmark {
+      flex: 0 0 auto !important;
+      width: 178px !important;
+    }
+
+    body.is-page-capturing .ptc-university-text {
+      flex: 0 0 auto !important;
+      font-size: 13px !important;
+      white-space: nowrap !important;
+    }
+
     body.is-page-capturing .controls-panel {
       position: static !important;
       top: auto !important;
     }
 
     body.is-page-capturing .page-download-button {
+      align-self: center !important;
+      justify-self: end !important;
+      margin-left: 0 !important;
       pointer-events: none !important;
     }
 

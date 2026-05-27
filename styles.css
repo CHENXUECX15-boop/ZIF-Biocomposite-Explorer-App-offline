@@ -164,8 +164,8 @@ input {
 .eyebrow {
   margin: 0 0 7px;
   color: var(--accent-dark);
-  font-size: 12px;
-  font-weight: 760;
+  font-size: 28px;
+  font-weight: 880;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -366,6 +366,51 @@ h2 {
 
 .filter-reset:hover {
   color: var(--ink);
+}
+
+.glossary-section {
+  gap: 8px;
+}
+
+.glossary-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 253, 248, 0.82);
+}
+
+.glossary-group {
+  display: grid;
+  gap: 3px;
+}
+
+.glossary-group dt {
+  color: var(--accent-dark);
+  font-size: 11px;
+  font-weight: 860;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.glossary-group dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 610;
+  line-height: 1.28;
+}
+
+.glossary-group strong {
+  color: var(--ink);
+  font-weight: 860;
+}
+
+.glossary-group sub {
+  font-size: 0.72em;
+  line-height: 0;
 }
 
 .plot-toolbar {
@@ -692,7 +737,7 @@ h2 {
 
 .tick-label {
   fill: #000000;
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 720;
 }
 

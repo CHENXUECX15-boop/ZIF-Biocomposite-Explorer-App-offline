@@ -1,10 +1,10 @@
 ﻿window.METRIC_DATA = window.METRIC_DATA || { concentrations: ["12.5 mg/mL", "25 mg/mL", "50 mg/mL", "75 mg/mL", "100 mg/mL"], metrics: {} };
 window.METRIC_DATA.metrics = window.METRIC_DATA.metrics || {};
 window.METRIC_DATA.metrics.IR = {
-    "label":  "IR-ratio",
-    "shortLabel":  "IR-ratio%",
+    "label":  "ATR-IR band ratio",
+    "shortLabel":  "ATR-IR band ratio%",
     "unit":  "%",
-    "valueLabel":  "IR-ratio [%]",
+    "valueLabel":  "ATR-IR band ratio [%]",
     "datasets":  {
                      "WW":  {
                                 "1":  {

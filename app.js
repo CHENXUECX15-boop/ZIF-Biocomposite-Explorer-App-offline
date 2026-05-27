@@ -46,9 +46,9 @@ const metricPalettes = {
 
 const valueFilterKeys = ["M", "L", "BSA", "EE", "LC", "IR", "AF"];
 const valueFilterLabels = {
-  M: "M%",
-  L: "L%",
-  BSA: "BSA%",
+  M: "M (wt.%)",
+  L: "L (wt.%)",
+  BSA: "BSA (wt.%)",
   EE: "EE%",
   LC: "LC%",
   IR: "IR-ratio%",
@@ -222,7 +222,7 @@ function textSizeForClass(className) {
   const sizes = {
     "layer-label": 21,
     "axis-label": 18,
-    "tick-label": 16,
+    "tick-label": 11,
     "sample-number": 13.5,
   };
   return sizes[className] || 16;
@@ -963,40 +963,51 @@ function renderGrid(group, index, fit) {
 }
 
 function renderAxisLabels(group, index, fit) {
+  const axisColors = {
+    M: "#000000",
+    L: "#008A2E",
+    BSA: "#EE0000",
+  };
   const axisLabels = [
-    ["M(%)", makePoint(100, 0, 0), -42, 20, "end"],
-    ["L(%)", makePoint(0, 100, 0), 42, 20, "start"],
-    ["BSA(%)", makePoint(0, 0, 100), 0, -18, "middle"],
+    ["M (wt.%)", makePoint(100, 0, 0), -42, 20, "end", axisColors.M],
+    ["L (wt.%)", makePoint(0, 100, 0), 42, 20, "start", axisColors.L],
+    ["BSA (wt.%)", makePoint(0, 0, 100), 0, -18, "middle", axisColors.BSA],
   ];
 
-  axisLabels.forEach(([label, local, dx, dy, anchor]) => {
-    textAt(group, label, screenFor(local, index, fit, dx, dy), "axis-label", {
+  axisLabels.forEach(([label, local, dx, dy, anchor, color]) => {
+    const node = textAt(group, label, screenFor(local, index, fit, dx, dy), "axis-label", {
       "text-anchor": anchor,
     });
+    node.style.fill = color;
   });
 
   for (let value = 20; value <= 100; value += 20) {
-    textAt(
+    const mTick = textAt(
       group,
       value,
-      screenFor(makePoint(value, 100 - value, 0), index, fit, 0, 18),
-      "tick-label",
-      { "text-anchor": "middle" },
-    );
-    textAt(
-      group,
-      value,
-      screenFor(makePoint(0, value, 100 - value), index, fit, 12, 4),
-      "tick-label",
-      { "text-anchor": "start" },
-    );
-    textAt(
-      group,
-      value,
-      screenFor(makePoint(100 - value, 0, value), index, fit, -12, 4),
+      screenFor(makePoint(value, 0, 100 - value), index, fit, -12, 4),
       "tick-label",
       { "text-anchor": "end" },
     );
+    mTick.style.fill = axisColors.M;
+
+    const lTick = textAt(
+      group,
+      value,
+      screenFor(makePoint(100 - value, value, 0), index, fit, 0, 18),
+      "tick-label",
+      { "text-anchor": "middle" },
+    );
+    lTick.style.fill = axisColors.L;
+
+    const bsaTick = textAt(
+      group,
+      value,
+      screenFor(makePoint(0, 100 - value, value), index, fit, 12, 4),
+      "tick-label",
+      { "text-anchor": "start" },
+    );
+    bsaTick.style.fill = axisColors.BSA;
   }
 }
 
@@ -1556,7 +1567,7 @@ function renderIrPlot(sample) {
     }),
     createSvgSupText(
       [
-        { text: "Wavelength [cm" },
+        { text: "Wavenumber [cm" },
         { text: "-1", sup: true },
         { text: "]" },
       ],
@@ -1646,7 +1657,7 @@ function downloadIrCsv() {
 
   const irData = window.IR_DATA;
   const spectrum = irSpectrumFor(sample, state.concentration);
-  const rows = [["Wavelength [cm^-1]", "Normalized absorbance [a.u.]"]];
+  const rows = [["Wavenumber [cm^-1]", "Normalized absorbance [a.u.]"]];
 
   if (Array.isArray(spectrum)) {
     spectrum.forEach((value, index) => {
@@ -1864,9 +1875,9 @@ function updateDetail() {
   els.detailTitle.textContent = `Sample ${sample.sample}`;
   renderConcentrationHtml(els.selectedConcentration, state.concentration);
   renderSelectedPhase(phase);
-  els.detailM.textContent = `${formatNumber(sample.M)}%`;
-  els.detailL.textContent = `${formatNumber(sample.L)}%`;
-  els.detailBSA.textContent = `${formatNumber(sample.BSA)}%`;
+  els.detailM.textContent = formatNumber(sample.M);
+  els.detailL.textContent = formatNumber(sample.L);
+  els.detailBSA.textContent = formatNumber(sample.BSA);
   els.detailRatio.textContent = formatNumber(sample.ratio);
   els.detailEE.textContent = formatMetricEntry(eeEntry, true, "EE");
   els.detailLC.textContent = formatMetricEntry(lcEntry, true, "LC");
@@ -2209,7 +2220,7 @@ function exportStyles() {
     .layer-edge { stroke: rgba(29, 37, 40, 0.58); stroke-width: 1; }
     .layer-label { fill: #000000; font-size: 18px; font-weight: 760; }
     .axis-label { fill: #000000; font-size: 15px; font-weight: 780; }
-    .tick-label { fill: #000000; font-size: 13px; font-weight: 720; }
+    .tick-label { fill: #000000; font-size: 8px; font-weight: 720; }
     .sample-hit { fill: transparent; }
     .sample-dot { stroke: #ffffff; stroke-width: 2; }
     .sample-number { fill: #000000; font-size: 9.5px; font-weight: 800; text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; }
@@ -2997,9 +3008,9 @@ function drawTable(ctx, sample, x, y, width) {
   ctx.fillText("Total", x + 16, y + 21);
   ctx.fillText("concentration", x + 16, y + 36);
   ctx.fillText("Phase", x + cols[1] + 16, y + 31);
-  ctx.fillText("EE%", x + cols[2] + 16, y + 31);
-  ctx.fillText("LC%", x + cols[3] + 16, y + 31);
-  ctx.fillText("IR-ratio%", x + cols[4] + 16, y + 31);
+  ctx.fillText("EE", x + cols[2] + 16, y + 31);
+  ctx.fillText("LC", x + cols[3] + 16, y + 31);
+  ctx.fillText("IR-ratio", x + cols[4] + 16, y + 31);
 
   [...PHASE_DATA.concentrations].reverse().forEach((concentration, index) => {
     const rowY = y + headerH + index * rowH;
@@ -3051,10 +3062,10 @@ function drawDetailPanel(ctx, sample, x, y, width, xrdImage, irImage) {
   let cursor = y + 46;
 
   drawCardShadow(ctx, x, y, width, 1740);
-  setCanvasFont(ctx, 13, 820);
+  setCanvasFont(ctx, 34, 880);
   ctx.fillStyle = pageExportTheme.accentDark;
   ctx.textAlign = "left";
-  ctx.fillText(state.dataset, x + 24, cursor - 4);
+  ctx.fillText(state.dataset, x + 24, cursor);
   setCanvasFont(ctx, 34, 880);
   ctx.fillStyle = pageExportTheme.ink;
   ctx.textAlign = "right";
@@ -3069,11 +3080,11 @@ function drawDetailPanel(ctx, sample, x, y, width, xrdImage, irImage) {
 
   const cardW = (width - 60) / 2;
   const metrics = [
-    ["M", `${formatNumber(sample.M)}%`],
-    ["L", `${formatNumber(sample.L)}%`],
-    ["BSA", `${formatNumber(sample.BSA)}%`],
-    ["L/M", formatNumber(sample.ratio)],
-    ["EE +/- error bar", formatMetricEntry(eeEntry, true, "EE")],
+    ["M (wt.%)", formatNumber(sample.M)],
+    ["L (wt.%)", formatNumber(sample.L)],
+    ["BSA (wt.%)", formatNumber(sample.BSA)],
+    ["L/M mass ratio", formatNumber(sample.ratio)],
+    ["EE +/-", formatMetricEntry(eeEntry, true, "EE")],
     ["LC", formatMetricEntry(lcEntry, true, "LC")],
   ];
   metrics.forEach(([label, value], index) => {
@@ -3093,7 +3104,7 @@ function drawDetailPanel(ctx, sample, x, y, width, xrdImage, irImage) {
   cursor += 260;
   [
     ["IR-ratio", formatMetricEntry(irEntry, true, "IR")],
-    ["Amorphous fraction", formatMetricEntry(afEntry, true, "AF")],
+    ["Amorphous fraction +/-", formatMetricEntry(afEntry, true, "AF")],
   ].forEach(([label, value], index) => {
     const cx = x + 24 + index * (cardW + 12);
     drawRoundRect(ctx, cx, cursor, cardW, 74, 8, "#ffffff", pageExportTheme.line, 1);

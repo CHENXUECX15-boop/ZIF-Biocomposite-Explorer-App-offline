@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Phase Ternary Stack</title>
-    <link rel="stylesheet" href="styles.css?v=20260526-page-logo-export" />
+    <link rel="stylesheet" href="styles.css?v=20260526-glossary" />
   </head>
   <body>
     <header class="app-header">
@@ -70,7 +70,7 @@
           <h2>Filters</h2>
           <div class="range-filter-grid" id="valueFilters" aria-label="M, L, BSA, EE, LC, IR-ratio, and amorphous fraction filters">
             <label class="range-filter">
-              <span>M%</span>
+              <span>M (wt.%)</span>
               <span class="range-fields">
                 <input type="number" min="0" max="100" step="1" value="0" data-filter-key="M" data-range-bound="min" />
                 <span>-</span>
@@ -78,7 +78,7 @@
               </span>
             </label>
             <label class="range-filter">
-              <span>L%</span>
+              <span>L (wt.%)</span>
               <span class="range-fields">
                 <input type="number" min="0" max="100" step="1" value="0" data-filter-key="L" data-range-bound="min" />
                 <span>-</span>
@@ -86,7 +86,7 @@
               </span>
             </label>
             <label class="range-filter">
-              <span>BSA%</span>
+              <span>BSA (wt.%)</span>
               <span class="range-fields">
                 <input type="number" min="0" max="100" step="1" value="0" data-filter-key="BSA" data-range-bound="min" />
                 <span>-</span>
@@ -141,6 +141,40 @@
             <button class="mode-tab" type="button" data-drag-mode="pan">Pan</button>
           </div>
         </section>
+
+        <section class="control-section glossary-section" aria-label="Glossary">
+          <h2>Glossary</h2>
+          <dl class="glossary-list">
+            <div class="glossary-group">
+              <dt>Washing</dt>
+              <dd><strong>WW</strong>: DI water washing</dd>
+              <dd><strong>EW</strong>: DI water washing followed by ethanol washing</dd>
+            </div>
+            <div class="glossary-group">
+              <dt>Composition</dt>
+              <dd><strong>L</strong>: 2-MeIM</dd>
+              <dd><strong>M</strong>: Zn(OAc)<sub>2</sub>&middot;2H<sub>2</sub>O</dd>
+              <dd><strong>BSA</strong>: Bovine serum albumin</dd>
+            </div>
+            <div class="glossary-group">
+              <dt>Metrics</dt>
+              <dd><strong>EE</strong>: Encapsulation efficiency</dd>
+              <dd><strong>LC</strong>: Loading capacity</dd>
+              <dd><strong>IR-ratio</strong>: ATR-IR band ratio</dd>
+            </div>
+            <div class="glossary-group">
+              <dt>Characterization</dt>
+              <dd><strong>PXRD</strong>: Powder X-ray diffraction</dd>
+              <dd><strong>ATR-IR</strong>: Attenuated total reflection infrared spectroscopy</dd>
+            </div>
+            <div class="glossary-group">
+              <dt>Phase labels</dt>
+              <dd><strong>ZIF-C</strong>: Zn<sub>2</sub>(mIm)<sub>2</sub>(CO<sub>3</sub>)</dd>
+              <dd><strong>sod</strong>: sodalite</dd>
+              <dd><strong>dia</strong>: diamondoid</dd>
+            </div>
+          </dl>
+        </section>
       </aside>
 
       <section class="visual-surface" aria-label="Stacked ternary plot">
@@ -186,23 +220,23 @@
 
         <dl class="composition-grid">
           <div>
-            <dt>M</dt>
+            <dt>M (wt.%)</dt>
             <dd id="detailM">-</dd>
           </div>
           <div>
-            <dt>L</dt>
+            <dt>L (wt.%)</dt>
             <dd id="detailL">-</dd>
           </div>
           <div>
-            <dt>BSA</dt>
+            <dt>BSA (wt.%)</dt>
             <dd id="detailBSA">-</dd>
           </div>
           <div>
-            <dt>L/M</dt>
+            <dt>L/M mass ratio</dt>
             <dd id="detailRatio">-</dd>
           </div>
           <div>
-            <dt>EE +/- error bar</dt>
+            <dt>EE +/-</dt>
             <dd id="detailEE">-</dd>
           </div>
           <div>
@@ -214,7 +248,7 @@
             <dd id="detailIR">-</dd>
           </div>
           <div>
-            <dt>Amorphous fraction</dt>
+            <dt>Amorphous fraction +/-</dt>
             <dd id="detailAF">-</dd>
           </div>
         </dl>
@@ -225,10 +259,10 @@
               <tr>
                 <th>Total concentration</th>
                 <th>Phase</th>
-                <th>EE%</th>
-                <th>LC%</th>
-                <th>IR-ratio%</th>
-                <th>Amorphous fraction%</th>
+                <th>EE</th>
+                <th>LC</th>
+                <th>IR-ratio</th>
+                <th>Amorphous fraction</th>
               </tr>
             </thead>
             <tbody id="phaseRows"></tbody>

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Phase Ternary Stack</title>
-    <link rel="stylesheet" href="styles.css?v=20260527-display-toggles" />
+    <link rel="stylesheet" href="styles.css?v=20260527-layer-spacing" />
   </head>
   <body>
     <header class="app-header">
@@ -140,6 +140,13 @@
             <button class="mode-tab is-active" type="button" data-drag-mode="rotate">Rotate</button>
             <button class="mode-tab" type="button" data-drag-mode="pan">Pan</button>
           </div>
+          <label class="layer-spacing-control">
+            <span class="layer-spacing-head">
+              <span>Layer spacing</span>
+              <output id="layerGapValue" for="layerGapControl">197</output>
+            </span>
+            <input id="layerGapControl" type="range" min="130" max="285" step="1" value="197" />
+          </label>
         </section>
 
         <section class="control-section glossary-section" aria-label="Glossary">
@@ -329,6 +336,6 @@
     <script src="data/xrd-data.js"></script>
     <script src="data/ir-data.js"></script>
     <script src="vendor/html2canvas.min.js"></script>
-    <script src="app.js?v=20260527-display-toggles"></script>
+    <script src="app.js?v=20260527-layer-spacing"></script>
   </body>
 </html>

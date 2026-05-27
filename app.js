@@ -70,8 +70,10 @@ const plot = {
   height: 1280,
   triangleWidth: 530,
   triangleHeight: 459,
-  maxLayerGap: 590,
-  minLayerGap: 590 / 3,
+  minLayerGap: 130,
+  maxLayerGap: 285,
+  defaultLayerGap: 590 / 3,
+  layerGapStep: 1,
   margin: 76,
   exportScale: 4,
 };
@@ -103,7 +105,7 @@ let state = {
   dataset: "WW",
   sample: 32,
   concentration: "25 mg/mL",
-  layerGap: plot.minLayerGap,
+  layerGap: plot.defaultLayerGap,
   visibleConcentration: "all",
   phaseFilter: "all",
   visualization: "phase",
@@ -139,6 +141,8 @@ const els = {
   concentrationLabelToggle: document.getElementById("concentrationLabelToggle"),
   axisLabelToggle: document.getElementById("axisLabelToggle"),
   axisTickToggle: document.getElementById("axisTickToggle"),
+  layerGapControl: document.getElementById("layerGapControl"),
+  layerGapValue: document.getElementById("layerGapValue"),
   valueFilters: document.getElementById("valueFilters"),
   resetValueFilters: document.getElementById("resetValueFilters"),
   phaseFilters: document.getElementById("phaseFilters"),
@@ -2075,6 +2079,17 @@ function updateControlStates() {
   if (els.axisTickToggle) {
     els.axisTickToggle.checked = state.showAxisTicks;
   }
+  if (els.layerGapControl) {
+    els.layerGapControl.min = String(plot.minLayerGap);
+    els.layerGapControl.max = String(plot.maxLayerGap);
+    els.layerGapControl.step = String(plot.layerGapStep);
+    els.layerGapControl.value = String(state.layerGap);
+  }
+  if (els.layerGapValue) {
+    const displayValue = String(Math.round(state.layerGap));
+    els.layerGapValue.value = displayValue;
+    els.layerGapValue.textContent = displayValue;
+  }
   els.valueFilters.querySelectorAll("[data-filter-key][data-range-bound]").forEach((input) => {
     const range = state.valueFilters[input.dataset.filterKey];
     input.value = range[input.dataset.rangeBound];
@@ -2107,10 +2122,6 @@ function updateValueFilter(input) {
     ...current,
     [bound]: value,
   };
-
-  if (nextRange.min > nextRange.max) {
-    nextRange[bound === "min" ? "max" : "min"] = value;
-  }
 
   state = {
     ...state,
@@ -2684,6 +2695,8 @@ const pageExportTheme = {
   ink: "#1d2528",
   muted: "#637074",
   line: "#d9d1c4",
+  lineStrong: "#a99f90",
+  accent: "#0f7f79",
   accentDark: "#07524f",
 };
 
@@ -3017,9 +3030,30 @@ function drawControlsPanel(ctx, x, y, width) {
 
   drawSectionTitle(ctx, "Navigation", sectionX, cursor);
   cursor += 18;
-  drawRoundRect(ctx, sectionX, cursor, innerW, 58, 8, "rgba(255,253,248,0.8)", pageExportTheme.line, 1);
+  drawRoundRect(ctx, sectionX, cursor, innerW, 104, 8, "rgba(255,253,248,0.8)", pageExportTheme.line, 1);
   drawButtonCanvas(ctx, "Rotate", sectionX + 8, cursor + 8, 88, 42, state.dragMode === "rotate");
   drawButtonCanvas(ctx, "Pan", sectionX + 110, cursor + 8, 78, 42, state.dragMode === "pan");
+  setCanvasFont(ctx, 13, 820);
+  ctx.fillStyle = pageExportTheme.muted;
+  ctx.textAlign = "left";
+  ctx.fillText("Layer spacing", sectionX + 10, cursor + 70);
+  ctx.textAlign = "right";
+  ctx.fillText(String(Math.round(state.layerGap)), sectionX + innerW - 10, cursor + 70);
+  const sliderX = sectionX + 10;
+  const sliderY = cursor + 88;
+  const sliderW = innerW - 20;
+  const sliderRatio = (state.layerGap - plot.minLayerGap) / (plot.maxLayerGap - plot.minLayerGap);
+  ctx.strokeStyle = pageExportTheme.lineStrong;
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(sliderX, sliderY);
+  ctx.lineTo(sliderX + sliderW, sliderY);
+  ctx.stroke();
+  ctx.fillStyle = pageExportTheme.accent || "#0f7f79";
+  ctx.beginPath();
+  ctx.arc(sliderX + sliderW * sliderRatio, sliderY, 7, 0, Math.PI * 2);
+  ctx.fill();
 
   return y + panelHeight;
 }
@@ -3635,6 +3669,15 @@ function bindEvents() {
       ...state,
       showAxisTicks: els.axisTickToggle.checked,
     };
+    renderPlot();
+  });
+
+  els.layerGapControl?.addEventListener("input", () => {
+    state = {
+      ...state,
+      layerGap: clamp(Number(els.layerGapControl.value), plot.minLayerGap, plot.maxLayerGap),
+    };
+    updateControlStates();
     renderPlot();
   });
 

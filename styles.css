@@ -311,6 +311,27 @@ h2 {
   shape-rendering: geometricPrecision;
 }
 
+.display-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: fit-content;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.display-toggle input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--teal);
+}
+
 .range-filter-grid {
   display: grid;
   gap: 7px;
@@ -422,6 +443,32 @@ h2 {
   padding: 12px 16px;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
+}
+
+.toolbar-left {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  min-width: 0;
+}
+
+.display-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.plot-toolbar .display-toggle {
+  min-height: 36px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.plot-toolbar .legend:empty {
+  display: none;
 }
 
 .figure-controls {

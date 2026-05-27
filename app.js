@@ -107,6 +107,10 @@ let state = {
   visibleConcentration: "all",
   phaseFilter: "all",
   visualization: "phase",
+  showSampleNumbers: true,
+  showConcentrationLabels: true,
+  showAxisLabels: true,
+  showAxisTicks: true,
   xrdZoom: 1,
   xrdPan: 0,
   irZoom: 1,
@@ -131,6 +135,10 @@ const els = {
   tabs: Array.from(document.querySelectorAll(".dataset-tab")),
   concentrationFilters: document.getElementById("concentrationFilters"),
   visualizationFilters: document.getElementById("visualizationFilters"),
+  sampleNumberToggle: document.getElementById("sampleNumberToggle"),
+  concentrationLabelToggle: document.getElementById("concentrationLabelToggle"),
+  axisLabelToggle: document.getElementById("axisLabelToggle"),
+  axisTickToggle: document.getElementById("axisTickToggle"),
   valueFilters: document.getElementById("valueFilters"),
   resetValueFilters: document.getElementById("resetValueFilters"),
   phaseFilters: document.getElementById("phaseFilters"),
@@ -974,40 +982,44 @@ function renderAxisLabels(group, index, fit) {
     ["BSA (wt.%)", makePoint(0, 0, 100), 0, -18, "middle", axisColors.BSA],
   ];
 
-  axisLabels.forEach(([label, local, dx, dy, anchor, color]) => {
-    const node = textAt(group, label, screenFor(local, index, fit, dx, dy), "axis-label", {
-      "text-anchor": anchor,
+  if (state.showAxisLabels) {
+    axisLabels.forEach(([label, local, dx, dy, anchor, color]) => {
+      const node = textAt(group, label, screenFor(local, index, fit, dx, dy), "axis-label", {
+        "text-anchor": anchor,
+      });
+      node.style.fill = color;
     });
-    node.style.fill = color;
-  });
+  }
 
-  for (let value = 20; value <= 100; value += 20) {
-    const mTick = textAt(
-      group,
-      value,
-      screenFor(makePoint(value, 0, 100 - value), index, fit, -12, 4),
-      "tick-label",
-      { "text-anchor": "end" },
-    );
-    mTick.style.fill = axisColors.M;
+  if (state.showAxisTicks) {
+    for (let value = 20; value <= 100; value += 20) {
+      const mTick = textAt(
+        group,
+        value,
+        screenFor(makePoint(value, 0, 100 - value), index, fit, -12, 4),
+        "tick-label",
+        { "text-anchor": "end" },
+      );
+      mTick.style.fill = axisColors.M;
 
-    const lTick = textAt(
-      group,
-      value,
-      screenFor(makePoint(100 - value, value, 0), index, fit, 0, 18),
-      "tick-label",
-      { "text-anchor": "middle" },
-    );
-    lTick.style.fill = axisColors.L;
+      const lTick = textAt(
+        group,
+        value,
+        screenFor(makePoint(100 - value, value, 0), index, fit, 0, 18),
+        "tick-label",
+        { "text-anchor": "middle" },
+      );
+      lTick.style.fill = axisColors.L;
 
-    const bsaTick = textAt(
-      group,
-      value,
-      screenFor(makePoint(0, 100 - value, value), index, fit, 12, 4),
-      "tick-label",
-      { "text-anchor": "start" },
-    );
-    bsaTick.style.fill = axisColors.BSA;
+      const bsaTick = textAt(
+        group,
+        value,
+        screenFor(makePoint(0, 100 - value, value), index, fit, 12, 4),
+        "tick-label",
+        { "text-anchor": "start" },
+      );
+      bsaTick.style.fill = axisColors.BSA;
+    }
   }
 }
 
@@ -1062,16 +1074,19 @@ function renderSamples(group, concentration, index, fit, samples) {
         r: scaledSampleSize(12.5),
         fill: dotFill,
       }),
-      createSvgElement("text", {
+    ];
+    if (mixedGradient) sampleNodes.unshift(mixedGradient);
+    if (state.showSampleNumbers) {
+      const numberNode = createSvgElement("text", {
         class: "sample-number",
         x: point.x,
         y: point.y + 0.6,
         style: `font-size: ${scaledSampleSize(textSizeForClass("sample-number"))}px`,
-      }),
-    ];
-    if (mixedGradient) sampleNodes.unshift(mixedGradient);
+      });
+      numberNode.textContent = sample.sample;
+      sampleNodes.push(numberNode);
+    }
     sampleGroup.append(...sampleNodes);
-    sampleGroup.lastElementChild.textContent = sample.sample;
 
     const title = createSvgElement("title");
     title.textContent = `Sample ${sample.sample} | ${formatConcentrationPlain(concentration)} | ${displayPhasePlain(phase)}${metricText.replace(", ", " | ")}`;
@@ -1123,9 +1138,11 @@ function renderLayer(concentration, index, fit, samples) {
     x: minX - 112,
     y: (minY + maxY) / 2,
   };
-  svgConcentrationText(group, concentration, labelPoint, "layer-label", {
-    "text-anchor": "end",
-  });
+  if (state.showConcentrationLabels) {
+    svgConcentrationText(group, concentration, labelPoint, "layer-label", {
+      "text-anchor": "end",
+    });
+  }
 
   return group;
 }
@@ -2046,6 +2063,18 @@ function updateControlStates() {
   els.visualizationFilters.querySelectorAll("[data-visualization]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.visualization === state.visualization);
   });
+  if (els.sampleNumberToggle) {
+    els.sampleNumberToggle.checked = state.showSampleNumbers;
+  }
+  if (els.concentrationLabelToggle) {
+    els.concentrationLabelToggle.checked = state.showConcentrationLabels;
+  }
+  if (els.axisLabelToggle) {
+    els.axisLabelToggle.checked = state.showAxisLabels;
+  }
+  if (els.axisTickToggle) {
+    els.axisTickToggle.checked = state.showAxisTicks;
+  }
   els.valueFilters.querySelectorAll("[data-filter-key][data-range-bound]").forEach((input) => {
     const range = state.valueFilters[input.dataset.filterKey];
     input.value = range[input.dataset.rangeBound];
@@ -3575,6 +3604,38 @@ function bindEvents() {
     updateControlStates();
     renderPlot();
     updateDetail();
+  });
+
+  els.sampleNumberToggle?.addEventListener("change", () => {
+    state = {
+      ...state,
+      showSampleNumbers: els.sampleNumberToggle.checked,
+    };
+    renderPlot();
+  });
+
+  els.concentrationLabelToggle?.addEventListener("change", () => {
+    state = {
+      ...state,
+      showConcentrationLabels: els.concentrationLabelToggle.checked,
+    };
+    renderPlot();
+  });
+
+  els.axisLabelToggle?.addEventListener("change", () => {
+    state = {
+      ...state,
+      showAxisLabels: els.axisLabelToggle.checked,
+    };
+    renderPlot();
+  });
+
+  els.axisTickToggle?.addEventListener("change", () => {
+    state = {
+      ...state,
+      showAxisTicks: els.axisTickToggle.checked,
+    };
+    renderPlot();
   });
 
   els.valueFilters.addEventListener("input", (event) => {

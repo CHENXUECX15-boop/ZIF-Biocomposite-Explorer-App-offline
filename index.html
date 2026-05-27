@@ -61,8 +61,8 @@
             <button class="metric-tab is-active" type="button" data-visualization="phase">Phase</button>
             <button class="metric-tab" type="button" data-visualization="EE">EE%</button>
             <button class="metric-tab" type="button" data-visualization="LC">LC%</button>
-            <button class="metric-tab" type="button" data-visualization="IR">IR-ratio%</button>
-            <button class="metric-tab" type="button" data-visualization="AF">Amorphous fraction%</button>
+            <button class="metric-tab" type="button" data-visualization="IR">IR-ratio [%]</button>
+            <button class="metric-tab" type="button" data-visualization="AF">Amorphous fraction [%]</button>
           </div>
         </section>
 
@@ -110,7 +110,7 @@
               </span>
             </label>
             <label class="range-filter">
-              <span>IR-ratio%</span>
+              <span>IR-ratio [%]</span>
               <span class="range-fields">
                 <input type="number" min="0" max="100" step="0.1" value="0" data-filter-key="IR" data-range-bound="min" />
                 <span>-</span>
@@ -118,7 +118,7 @@
               </span>
             </label>
             <label class="range-filter">
-              <span>Amorphous fraction%</span>
+              <span>Amorphous fraction [%]</span>
               <span class="range-fields">
                 <input type="number" min="0" max="100" step="0.1" value="0" data-filter-key="AF" data-range-bound="min" />
                 <span>-</span>
@@ -154,12 +154,12 @@
           <dl class="glossary-list">
             <div class="glossary-group">
               <dt>Washing</dt>
-              <dd><strong>WW</strong>: DI water washing</dd>
-              <dd><strong>EW</strong>: DI water washing followed by ethanol washing</dd>
+              <dd><strong>WW</strong>: deionized water washing only</dd>
+              <dd><strong>EW</strong>: deionized water washing followed by ethanol washing</dd>
             </div>
             <div class="glossary-group">
               <dt>Composition</dt>
-              <dd><strong>L</strong>: 2-MeIM</dd>
+              <dd><strong>L</strong>: 2-methylimidazole</dd>
               <dd><strong>M</strong>: Zn(OAc)<sub>2</sub>&middot;2H<sub>2</sub>O</dd>
               <dd><strong>BSA</strong>: Bovine serum albumin</dd>
             </div>
@@ -336,6 +336,6 @@
     <script src="data/xrd-data.js"></script>
     <script src="data/ir-data.js"></script>
     <script src="vendor/html2canvas.min.js"></script>
-    <script src="app.js?v=20260527-layer-spacing"></script>
+    <script src="app.js?v=20260527-percent-brackets"></script>
   </body>
 </html>

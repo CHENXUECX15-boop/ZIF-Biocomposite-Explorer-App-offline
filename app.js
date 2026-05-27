@@ -33,8 +33,8 @@ const metricModes = [
   ["Phase", "phase"],
   ["EE%", "EE"],
   ["LC%", "LC"],
-  ["IR-ratio%", "IR"],
-  ["Amorphous fraction%", "AF"],
+  ["IR-ratio [%]", "IR"],
+  ["Amorphous fraction [%]", "AF"],
 ];
 
 const metricPalettes = {
@@ -51,8 +51,8 @@ const valueFilterLabels = {
   BSA: "BSA (wt.%)",
   EE: "EE%",
   LC: "LC%",
-  IR: "IR-ratio%",
-  AF: "Amorphous fraction%",
+  IR: "IR-ratio [%]",
+  AF: "Amorphous fraction [%]",
 };
 
 const defaultValueFilters = Object.freeze({

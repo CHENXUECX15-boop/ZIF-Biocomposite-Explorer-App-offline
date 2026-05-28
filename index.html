@@ -139,7 +139,7 @@
           <dl class="glossary-list">
             <div class="glossary-group">
               <dt>Composition</dt>
-              <dd><strong>L</strong>: 2-methylimidazole</dd>
+              <dd><strong>L</strong>: 2-methylimidazole (HmIM)</dd>
               <dd><strong>M</strong>: Zn(OAc)<sub>2</sub>&middot;2H<sub>2</sub>O</dd>
               <dd><strong>BSA</strong>: Bovine serum albumin</dd>
             </div>
@@ -150,9 +150,9 @@
             </div>
             <div class="glossary-group">
               <dt>Phase</dt>
-              <dd><strong>ZIF-C</strong>: Zn<sub>2</sub>(mIm)<sub>2</sub>(CO<sub>3</sub>)</dd>
-              <dd><strong>sod</strong>: sodalite</dd>
-              <dd><strong>dia</strong>: diamondoid</dd>
+              <dd><strong>ZIF-C</strong>: Zn<sub>2</sub>(mIM)<sub>2</sub>CO<sub>3</sub></dd>
+              <dd><strong>sod</strong>: sodalite, Zn(mIM)<sub>2</sub></dd>
+              <dd><strong>dia</strong>: diamondoid, Zn(mIM)<sub>2</sub></dd>
             </div>
             <div class="glossary-group">
               <dt>Characterization</dt>
@@ -194,6 +194,8 @@
               <label class="font-size-control">
                 <span>Concentration size</span>
                 <select id="concentrationFontScale">
+                  <option value="0.5">-1x</option>
+                  <option value="0.75">-0.5x</option>
                   <option value="1" selected>1x</option>
                   <option value="1.5">1.5x</option>
                   <option value="2">2x</option>
@@ -204,6 +206,8 @@
               <label class="font-size-control">
                 <span>Axis number size</span>
                 <select id="axisTickFontScale">
+                  <option value="0.5">-1x</option>
+                  <option value="0.75">-0.5x</option>
                   <option value="1" selected>1x</option>
                   <option value="1.5">1.5x</option>
                   <option value="2">2x</option>
@@ -214,6 +218,8 @@
               <label class="font-size-control">
                 <span>Axis label size</span>
                 <select id="axisLabelFontScale">
+                  <option value="0.5">-1x</option>
+                  <option value="0.75">-0.5x</option>
                   <option value="1" selected>1x</option>
                   <option value="1.5">1.5x</option>
                   <option value="2">2x</option>
@@ -225,6 +231,10 @@
             <div class="legend" id="legend" aria-label="Phase legend"></div>
           </div>
           <div class="figure-controls">
+            <div class="figure-actions">
+              <button id="resetView" class="tool-button" type="button">Reset View</button>
+              <button id="downloadPng" class="tool-button primary" type="button">Download PNG</button>
+            </div>
             <div class="navigation-toolbar" aria-label="Navigation controls">
               <div class="mode-tabs" aria-label="Drag mode">
                 <button class="mode-tab is-active" type="button" data-drag-mode="rotate">Rotate</button>
@@ -246,10 +256,6 @@
                 </span>
                 <input id="layerGapControl" type="range" min="130" max="285" step="1" value="197" />
               </label>
-            </div>
-            <div class="figure-actions">
-              <button id="resetView" class="tool-button" type="button">Reset View</button>
-              <button id="downloadPng" class="tool-button primary" type="button">Download PNG</button>
             </div>
           </div>
         </div>

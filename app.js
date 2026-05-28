@@ -27,6 +27,105 @@ const phaseFamilies = [
   ["mixed", "mixed"],
 ];
 
+const phaseReplicateStats = {
+  WW: {
+    17: {
+      "25 mg/mL": [
+        { token: "sod", mean: 6, error: 4.582576 },
+        { token: "ZIF-C", mean: 94, error: 4.582576 },
+      ],
+      "75 mg/mL": [
+        { token: "sod", mean: 2, error: 0 },
+        { token: "ZIF-C", mean: 98, error: 0 },
+      ],
+      "100 mg/mL": [
+        { token: "sod", mean: 9, error: 7 },
+        { token: "ZIF-C", mean: 91, error: 7 },
+      ],
+    },
+    18: {
+      "25 mg/mL": [
+        { token: "sod", mean: 3.666667, error: 2.886751 },
+        { token: "ZIF-C", mean: 96.333333, error: 2.886751 },
+      ],
+      "50 mg/mL": [
+        { token: "sod", mean: 2.666667, error: 1.154701 },
+        { token: "ZIF-C", mean: 97.333333, error: 1.154701 },
+      ],
+      "75 mg/mL": [
+        { token: "sod", mean: 4, error: 3.464102 },
+        { token: "ZIF-C", mean: 96, error: 3.464102 },
+      ],
+      "100 mg/mL": [
+        { token: "sod", mean: 7.333333, error: 2.081666 },
+        { token: "ZIF-C", mean: 92.666667, error: 2.081666 },
+      ],
+    },
+    19: {
+      "50 mg/mL": [
+        { token: "sod", mean: 16.333333, error: 7.637626 },
+        { token: "ZIF-C", mean: 83.666667, error: 7.637626 },
+      ],
+    },
+    25: {
+      "75 mg/mL": [
+        { token: "ZIF-C", mean: 74.333333, error: 16.802778 },
+        { token: "U12", mean: 25.666667, error: 16.802778 },
+      ],
+    },
+    27: {
+      "25 mg/mL": [
+        { token: "sod", mean: 57.666667, error: 8.736895 },
+        { token: "ZIF-C", mean: 42.333333, error: 8.736895 },
+      ],
+    },
+    31: {
+      "25 mg/mL": [
+        { token: "sod", mean: 17.333333, error: 3.05505 },
+        { token: "ZIF-C", mean: 82.666667, error: 3.05505 },
+      ],
+    },
+    32: {
+      "25 mg/mL": [
+        { token: "dia", mean: 54, error: 25.059928 },
+        { token: "ZIF-C", mean: 46, error: 25.059928 },
+      ],
+    },
+    34: {
+      "25 mg/mL": [
+        { token: "sod", mean: 24.333333, error: 14.189198 },
+        { token: "dia", mean: 75.666667, error: 14.189198 },
+      ],
+      "50 mg/mL": [
+        { token: "sod", mean: 26, error: 12.124356 },
+        { token: "dia", mean: 74, error: 12.124356 },
+      ],
+      "75 mg/mL": [
+        { token: "sod", mean: 59.666667, error: 33.724373 },
+        { token: "dia", mean: 40.333333, error: 33.724373 },
+      ],
+    },
+    35: {
+      "25 mg/mL": [
+        { token: "sod", mean: 93.333333, error: 2.886751 },
+        { token: "ZIF-C", mean: 5.666667, error: 4.041452 },
+      ],
+    },
+  },
+  EW: {
+    32: {
+      "75 mg/mL": [
+        { token: "sod", mean: 10.666667, error: 3.21455 },
+        { token: "dia", mean: 89.333333, error: 3.21455 },
+      ],
+      "100 mg/mL": [
+        { token: "sod", mean: 12.333333, error: 8.621678 },
+        { token: "dia", mean: 87.666667, error: 8.621678 },
+      ],
+    },
+  },
+};
+
 const phaseTokenPattern = "amorphous|ZIF-C|Sodalite|SOD|DIA|U13|U12";
 
 const metricModes = [
@@ -55,7 +154,7 @@ const valueFilterLabels = {
   AF: "Amorphous fraction [%]",
 };
 
-const fontScaleOptions = [1, 1.5, 2, 2.5, 3];
+const fontScaleOptions = [0.5, 0.75, 1, 1.5, 2, 2.5, 3];
 
 const defaultValueFilters = Object.freeze({
   M: Object.freeze({ min: 0, max: 100 }),
@@ -296,6 +395,45 @@ function displayPhasePlain(phase) {
   );
 }
 
+function phaseStatsFor(sampleOrNumber, concentration, dataset = state.dataset) {
+  const sampleNumber =
+    typeof sampleOrNumber === "object" ? sampleOrNumber?.sample : sampleOrNumber;
+  return phaseReplicateStats[dataset]?.[sampleNumber]?.[concentration] || null;
+}
+
+function formatPhasePercent(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric.toFixed(1) : "0.0";
+}
+
+function formatPhaseComponentText(component, options = {}) {
+  const showError = options.showError !== false;
+  if (showError && Number.isFinite(component.error)) {
+    return `${formatPhasePercent(component.percent)}% +/- ${formatPhasePercent(component.error)}%${component.label}`;
+  }
+  return `${formatNumber(component.percent, 1)}%${component.label}`;
+}
+
+function appendPhaseComponentText(container, component, options = {}) {
+  const showError = options.showError !== false && Number.isFinite(component.error);
+  const span = document.createElement("span");
+  span.className = "phase-component";
+  span.style.color = component.color;
+  span.style.webkitTextFillColor = component.color;
+
+  if (showError) {
+    span.append(document.createTextNode(`${formatPhasePercent(component.percent)}%`));
+    const error = document.createElement("span");
+    error.className = "phase-error";
+    error.textContent = ` +/- ${formatPhasePercent(component.error)}%`;
+    span.append(error, document.createTextNode(component.label));
+  } else {
+    span.textContent = formatPhaseComponentText(component, { showError: false });
+  }
+
+  container.append(span);
+}
+
 function renderPhaseText(container, phase) {
   const source = String(phase || "-");
   const pattern = /amorphous|ZIF-C|Sodalite|SOD|DIA|U13|U12/gi;
@@ -325,20 +463,15 @@ function renderPhaseText(container, phase) {
   }
 }
 
-function renderMixedPhaseText(container, phase) {
-  const components = phaseColorComponents(phase);
+function renderMixedPhaseText(container, phase, stats = null, options = {}) {
+  const components = phaseColorComponents(phase, stats);
   if (components.length < 2) return false;
 
   container.replaceChildren();
 
   components.forEach((component, index) => {
     if (index > 0) container.append(document.createTextNode("+"));
-    const span = document.createElement("span");
-    span.className = "phase-component";
-    span.style.color = component.color;
-    span.style.webkitTextFillColor = component.color;
-    span.textContent = `${formatNumber(component.percent, 1)}%${component.label}`;
-    container.append(span);
+    appendPhaseComponentText(container, component, options);
   });
   return true;
 }
@@ -367,7 +500,32 @@ function hexToRgba(hex, alpha = 1) {
   return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
 }
 
-function phaseColorComponents(phase) {
+function phaseColorComponents(phase, stats = null) {
+  if (Array.isArray(stats) && stats.length > 1) {
+    const valid = stats
+      .map((component) => {
+        const label = normalizedToken(component.token);
+        return {
+          label,
+          key: normalizePhase(label),
+          percent: Number(component.mean),
+          error: Number(component.error),
+          color: colorForPhase(label),
+        };
+      })
+      .filter(
+        (component) =>
+          Number.isFinite(component.percent) && component.percent > 0 && component.key !== "missing",
+      );
+    const total = valid.reduce((sum, component) => sum + component.percent, 0);
+    if (!valid.length || total <= 0) return [];
+
+    return valid.map((component) => ({
+      ...component,
+      fraction: component.percent / total,
+    }));
+  }
+
   const source = String(phase || "").trim();
   if (normalizePhase(source) !== "mixed") return [];
 
@@ -419,8 +577,8 @@ function phaseColorComponents(phase) {
   }));
 }
 
-function phaseGradientStops(phase, alpha = 1, showSeparator = false) {
-  const components = phaseColorComponents(phase);
+function phaseGradientStops(phase, alpha = 1, showSeparator = false, stats = null) {
+  const components = phaseColorComponents(phase, stats);
   if (components.length < 2) return [];
 
   let cursor = 0;
@@ -454,16 +612,16 @@ function phaseGradientStops(phase, alpha = 1, showSeparator = false) {
   });
 }
 
-function phaseGradientCss(phase, alpha = 1, showSeparator = false) {
-  const stops = phaseGradientStops(phase, alpha, showSeparator);
+function phaseGradientCss(phase, alpha = 1, showSeparator = false, stats = null) {
+  const stops = phaseGradientStops(phase, alpha, showSeparator, stats);
   if (!stops.length) return "";
   return `linear-gradient(90deg, ${stops
     .map((stop) => `${stop.color} ${stop.offset.toFixed(2)}%`)
     .join(", ")})`;
 }
 
-function createPhaseSvgGradient(id, phase) {
-  const stops = phaseGradientStops(phase, 1, true);
+function createPhaseSvgGradient(id, phase, stats = null) {
+  const stops = phaseGradientStops(phase, 1, true, stats);
   if (!stops.length) return null;
 
   const defs = createSvgElement("defs");
@@ -1062,6 +1220,7 @@ function renderSamples(group, concentration, index, fit, samples) {
   samples.forEach((sample) => {
     const point = screenFor(localForComposition(sample), index, fit);
     const phase = sample.phases[concentration];
+    const phaseStats = phaseStatsFor(sample, concentration);
     const metricText =
       state.visualization === "phase"
         ? ""
@@ -1082,11 +1241,13 @@ function renderSamples(group, concentration, index, fit, samples) {
       role: "button",
       "data-sample": sample.sample,
       "data-concentration": concentration,
-      "aria-label": `Sample ${sample.sample}, ${formatConcentrationPlain(concentration)}, ${displayPhasePlain(phase)}${metricText}`,
+      "aria-label": `Sample ${sample.sample}, ${formatConcentrationPlain(concentration)}, ${
+        phaseStats ? phaseColorComponents(phase, phaseStats).map(formatPhaseComponentText).join("+") : displayPhasePlain(phase)
+      }${metricText}`,
     });
     const mixedGradientId = `phaseMix${state.dataset}${index}${String(concentration).replace(/[^a-z0-9]/gi, "")}${sample.sample}`;
     const mixedGradient =
-      state.visualization === "phase" ? createPhaseSvgGradient(mixedGradientId, phase) : null;
+      state.visualization === "phase" ? createPhaseSvgGradient(mixedGradientId, phase, phaseStats) : null;
     const dotFill = mixedGradient ? `url(#${mixedGradientId})` : colorForSample(sample, concentration, phase);
 
     const sampleNodes = [
@@ -1124,7 +1285,9 @@ function renderSamples(group, concentration, index, fit, samples) {
     sampleGroup.append(...sampleNodes);
 
     const title = createSvgElement("title");
-    title.textContent = `Sample ${sample.sample} | ${formatConcentrationPlain(concentration)} | ${displayPhasePlain(phase)}${metricText.replace(", ", " | ")}`;
+    title.textContent = `Sample ${sample.sample} | ${formatConcentrationPlain(concentration)} | ${
+      phaseStats ? phaseColorComponents(phase, phaseStats).map(formatPhaseComponentText).join("+") : displayPhasePlain(phase)
+    }${metricText.replace(", ", " | ")}`;
     sampleGroup.append(title);
 
     sampleGroup.addEventListener("keydown", (event) => {
@@ -1897,11 +2060,11 @@ function resetSelectedPhaseStyle() {
   els.selectedPhase.style.color = "";
 }
 
-function renderSelectedPhase(phase) {
+function renderSelectedPhase(phase, stats = null) {
   resetSelectedPhaseStyle();
-  if (phaseColorComponents(phase).length > 1) {
+  if (phaseColorComponents(phase, stats).length > 1) {
     els.selectedPhase.classList.add("is-mixed-phase");
-    renderMixedPhaseText(els.selectedPhase, phase);
+    renderMixedPhaseText(els.selectedPhase, phase, stats, { showError: true });
     return;
   }
 
@@ -1909,13 +2072,13 @@ function renderSelectedPhase(phase) {
   els.selectedPhase.style.color = colorForPhase(phase);
 }
 
-function stylePhaseChip(chip, phase) {
+function stylePhaseChip(chip, phase, stats = null) {
   const phaseType = normalizePhase(phase);
   const phaseColor = colorForPhase(phase);
-  chip.classList.toggle("is-mixed-phase", phaseColorComponents(phase).length > 1);
+  chip.classList.toggle("is-mixed-phase", phaseColorComponents(phase, stats).length > 1);
 
-  if (phaseColorComponents(phase).length > 1) {
-    chip.style.background = phaseGradientCss(phase, 0.15, true);
+  if (phaseColorComponents(phase, stats).length > 1) {
+    chip.style.background = phaseGradientCss(phase, 0.15, true, stats);
     chip.style.borderColor = palette.mixed;
     chip.style.color = "#172124";
     return;
@@ -1946,6 +2109,7 @@ function updateDetail() {
   }
 
   const phase = sample.phases[state.concentration] || "-";
+  const phaseStats = phaseStatsFor(sample, state.concentration);
   const eeEntry = metricEntry("EE", sample, state.concentration);
   const lcEntry = metricEntry("LC", sample, state.concentration);
   const irEntry = metricEntry("IR", sample, state.concentration);
@@ -1954,7 +2118,7 @@ function updateDetail() {
   els.detailDataset.textContent = state.dataset;
   els.detailTitle.textContent = `Sample ${sample.sample}`;
   renderConcentrationHtml(els.selectedConcentration, state.concentration);
-  renderSelectedPhase(phase);
+  renderSelectedPhase(phase, phaseStats);
   els.detailM.textContent = formatNumber(sample.M);
   els.detailL.textContent = formatNumber(sample.L);
   els.detailBSA.textContent = formatNumber(sample.BSA);
@@ -1979,11 +2143,12 @@ function updateDetail() {
       const phaseCell = document.createElement("td");
       const chip = document.createElement("span");
       const rowPhase = sample.phases[concentration] || "-";
+      const rowPhaseStats = phaseStatsFor(sample, concentration);
       chip.className = "phase-chip";
-      if (!renderMixedPhaseText(chip, rowPhase)) {
+      if (!renderMixedPhaseText(chip, rowPhase, rowPhaseStats, { showError: false })) {
         renderPhaseText(chip, rowPhase);
       }
-      stylePhaseChip(chip, rowPhase);
+      stylePhaseChip(chip, rowPhase, rowPhaseStats);
       phaseCell.append(chip);
 
       const eeCell = document.createElement("td");
@@ -2895,8 +3060,8 @@ function drawConcentrationButtonCanvas(ctx, concentration, x, y, width, height, 
   ctx.fillText("-1", startX + prefixWidth + 1, baselineY - size * 0.42);
 }
 
-function drawPhaseCanvasText(ctx, phase, x, y, size = 28, weight = 900) {
-  const components = phaseColorComponents(phase);
+function drawPhaseCanvasText(ctx, phase, x, y, size = 28, weight = 900, stats = null, options = {}) {
+  const components = phaseColorComponents(phase, stats);
   setCanvasFont(ctx, size, weight);
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
@@ -2905,14 +3070,27 @@ function drawPhaseCanvasText(ctx, phase, x, y, size = 28, weight = 900) {
     let cursor = x;
     components.forEach((component, index) => {
       if (index > 0) {
+        setCanvasFont(ctx, size, weight);
         ctx.fillStyle = pageExportTheme.ink;
         ctx.fillText("+", cursor, y);
         cursor += ctx.measureText("+").width;
       }
-      const text = `${formatNumber(component.percent, 1)}%${component.label}`;
       ctx.fillStyle = component.color;
-      ctx.fillText(text, cursor, y);
-      cursor += ctx.measureText(text).width;
+      const percentText = `${formatPhasePercent(component.percent)}%`;
+      setCanvasFont(ctx, size, weight);
+      ctx.fillText(percentText, cursor, y);
+      cursor += ctx.measureText(percentText).width;
+
+      if (options.showError !== false && Number.isFinite(component.error)) {
+        const errorText = ` +/- ${formatPhasePercent(component.error)}%`;
+        setCanvasFont(ctx, size * 0.35, weight);
+        ctx.fillText(errorText, cursor, y);
+        cursor += ctx.measureText(errorText).width;
+      }
+
+      setCanvasFont(ctx, size, weight);
+      ctx.fillText(component.label, cursor, y);
+      cursor += ctx.measureText(component.label).width;
     });
     return;
   }
@@ -2949,14 +3127,14 @@ function drawPhaseLegendSwatchCanvas(ctx, key, x, y, radius = 9) {
   ctx.stroke();
 }
 
-function drawPhaseChipCanvas(ctx, phase, x, y, width, height, size = 15) {
-  const components = phaseColorComponents(phase);
+function drawPhaseChipCanvas(ctx, phase, x, y, width, height, size = 15, stats = null, options = {}) {
+  const components = phaseColorComponents(phase, stats);
   const phaseType = normalizePhase(phase);
   const color = colorForPhase(phase);
 
   if (components.length > 1) {
     const gradient = ctx.createLinearGradient(x, y, x + width, y);
-    phaseGradientStops(phase, 0.42, true).forEach((stop) => {
+    phaseGradientStops(phase, 0.42, true, stats).forEach((stop) => {
       gradient.addColorStop(clamp(stop.offset / 100, 0, 1), stop.color);
     });
     drawRoundRect(ctx, x, y, width, height, height / 2, gradient, palette.mixed, 1.4);
@@ -2979,7 +3157,7 @@ function drawPhaseChipCanvas(ctx, phase, x, y, width, height, size = 15) {
   if (ctx.roundRect) ctx.roundRect(x, y, width, height, height / 2);
   else ctx.rect(x, y, width, height);
   ctx.clip();
-  drawPhaseCanvasText(ctx, phase, x + 12, y + height / 2 + size * 0.36, size, 860);
+  drawPhaseCanvasText(ctx, phase, x + 12, y + height / 2 + size * 0.36, size, 860, stats, options);
   ctx.restore();
 }
 
@@ -3141,7 +3319,17 @@ function drawTable(ctx, sample, x, y, width) {
     ctx.fillStyle = pageExportTheme.ink;
     ctx.textAlign = "left";
     drawConcentrationCanvas(ctx, concentration, x + 16, rowY + 35, 13, 520);
-    drawPhaseChipCanvas(ctx, sample.phases[concentration] || "-", x + cols[1] + 16, rowY + 15, 150, 28, 13);
+    drawPhaseChipCanvas(
+      ctx,
+      sample.phases[concentration] || "-",
+      x + cols[1] + 16,
+      rowY + 15,
+      150,
+      28,
+      13,
+      phaseStatsFor(sample, concentration),
+      { showError: false },
+    );
     drawMetricChipCanvas(ctx, "EE", sample, concentration, x + cols[2] + 16, rowY + 15, 70, 28);
     drawMetricChipCanvas(ctx, "LC", sample, concentration, x + cols[3] + 16, rowY + 15, 70, 28);
     drawMetricChipCanvas(ctx, "IR", sample, concentration, x + cols[4] + 16, rowY + 15, 76, 28);
@@ -3170,6 +3358,7 @@ function drawSpectrumCanvasPanel(ctx, image, title, status, x, y, width, imageWi
 
 function drawDetailPanel(ctx, sample, x, y, width, xrdImage, irImage) {
   const phase = sample.phases[state.concentration] || "-";
+  const phaseStats = phaseStatsFor(sample, state.concentration);
   const eeEntry = metricEntry("EE", sample, state.concentration);
   const lcEntry = metricEntry("LC", sample, state.concentration);
   const irEntry = metricEntry("IR", sample, state.concentration);
@@ -3190,7 +3379,7 @@ function drawDetailPanel(ctx, sample, x, y, width, xrdImage, irImage) {
   drawRoundRect(ctx, x + 24, cursor, width - 48, 104, 8, pageExportTheme.surfaceStrong, pageExportTheme.line, 1);
   ctx.fillStyle = pageExportTheme.muted;
   drawConcentrationCanvas(ctx, state.concentration, x + 44, cursor + 35, 14, 800);
-  drawPhaseCanvasText(ctx, phase, x + 44, cursor + 78, 32, 900);
+  drawPhaseCanvasText(ctx, phase, x + 44, cursor + 78, 32, 900, phaseStats);
   cursor += 124;
 
   const cardW = (width - 60) / 2;

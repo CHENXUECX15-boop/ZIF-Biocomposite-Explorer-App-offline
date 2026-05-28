@@ -529,15 +529,13 @@ h2 {
 }
 
 .navigation-toolbar {
-  display: grid;
-  gap: 8px;
-  width: 292px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px 10px;
+  width: min(560px, 100%);
   max-width: 100%;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 8px;
-  background: #ffffff;
-  box-shadow: 0 7px 22px rgba(35, 61, 94, 0.18);
 }
 
 .plot-toolbar .mode-tabs {
@@ -552,10 +550,13 @@ h2 {
 }
 
 .plot-toolbar .layer-spacing-control {
-  width: 100%;
+  flex: 1 1 260px;
+  width: auto;
   min-height: 36px;
   gap: 5px;
-  padding: 7px 9px;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .plot-toolbar .layer-spacing-head {
@@ -601,7 +602,7 @@ h2 {
   flex-direction: column;
   align-items: flex-end;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
 }
 
 .legend {

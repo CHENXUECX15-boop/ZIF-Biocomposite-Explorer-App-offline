@@ -159,6 +159,8 @@ input {
 .page-download-button {
   flex: 0 0 auto;
   margin-left: auto;
+  min-width: 168px;
+  white-space: nowrap;
 }
 
 .eyebrow {
@@ -198,13 +200,20 @@ h2 {
 }
 
 .metric-tabs {
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
   width: 100%;
 }
 
 .metric-tabs .metric-tab {
-  flex: 1 1 70px;
-  padding: 10px 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 8px;
+  white-space: nowrap;
+}
+
+.metric-tabs .metric-tab[data-visualization="AF"] {
+  grid-column: 1 / -1;
 }
 
 .dataset-tab,
@@ -408,11 +417,23 @@ h2 {
   font-weight: 820;
 }
 
-.layer-spacing-head output {
-  min-width: 34px;
+.layer-spacing-number {
+  width: 54px;
+  min-width: 46px;
+  border: 0;
+  padding: 0;
+  background: transparent;
   color: var(--ink);
   text-align: right;
   font-weight: 860;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.layer-spacing-number::-webkit-outer-spin-button,
+.layer-spacing-number::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
 }
 
 .layer-spacing-control input[type="range"] {
@@ -500,15 +521,87 @@ h2 {
   white-space: nowrap;
 }
 
+.font-size-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.navigation-toolbar {
+  display: grid;
+  gap: 8px;
+  width: 292px;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px;
+  background: #ffffff;
+  box-shadow: 0 7px 22px rgba(35, 61, 94, 0.18);
+}
+
+.plot-toolbar .mode-tabs {
+  min-height: 36px;
+  padding: 4px;
+  width: max-content;
+}
+
+.plot-toolbar .mode-tab {
+  min-width: 58px;
+  padding: 7px 12px;
+}
+
+.plot-toolbar .layer-spacing-control {
+  width: 100%;
+  min-height: 36px;
+  gap: 5px;
+  padding: 7px 9px;
+}
+
+.plot-toolbar .layer-spacing-head {
+  font-size: 11px;
+}
+
+.plot-toolbar .layer-spacing-number {
+  min-width: 28px;
+}
+
+.font-size-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px 8px;
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 780;
+  white-space: nowrap;
+}
+
+.font-size-control select {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 3px 20px 3px 6px;
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
 .plot-toolbar .legend:empty {
   display: none;
 }
 
 .figure-controls {
   display: inline-flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
   justify-content: flex-end;
-  gap: 14px;
+  gap: 8px;
 }
 
 .legend {
@@ -811,7 +904,7 @@ h2 {
 
 .axis-label {
   fill: #000000;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 780;
 }
 

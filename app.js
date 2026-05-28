@@ -55,6 +55,8 @@ const valueFilterLabels = {
   AF: "Amorphous fraction [%]",
 };
 
+const fontScaleOptions = [1, 1.5, 2, 2.5, 3];
+
 const defaultValueFilters = Object.freeze({
   M: Object.freeze({ min: 0, max: 100 }),
   L: Object.freeze({ min: 0, max: 100 }),
@@ -113,6 +115,9 @@ let state = {
   showConcentrationLabels: true,
   showAxisLabels: true,
   showAxisTicks: true,
+  concentrationFontScale: 1,
+  axisTickFontScale: 1,
+  axisLabelFontScale: 1,
   xrdZoom: 1,
   xrdPan: 0,
   irZoom: 1,
@@ -141,8 +146,11 @@ const els = {
   concentrationLabelToggle: document.getElementById("concentrationLabelToggle"),
   axisLabelToggle: document.getElementById("axisLabelToggle"),
   axisTickToggle: document.getElementById("axisTickToggle"),
+  concentrationFontScale: document.getElementById("concentrationFontScale"),
+  axisTickFontScale: document.getElementById("axisTickFontScale"),
+  axisLabelFontScale: document.getElementById("axisLabelFontScale"),
   layerGapControl: document.getElementById("layerGapControl"),
-  layerGapValue: document.getElementById("layerGapValue"),
+  layerGapNumber: document.getElementById("layerGapNumber"),
   valueFilters: document.getElementById("valueFilters"),
   resetValueFilters: document.getElementById("resetValueFilters"),
   phaseFilters: document.getElementById("phaseFilters"),
@@ -233,11 +241,21 @@ function scaledSampleSize(value) {
 function textSizeForClass(className) {
   const sizes = {
     "layer-label": 21,
-    "axis-label": 18,
+    "axis-label": 16,
     "tick-label": 11,
     "sample-number": 13.5,
   };
-  return sizes[className] || 16;
+  const scaleByClass = {
+    "layer-label": state.concentrationFontScale,
+    "axis-label": state.axisLabelFontScale,
+    "tick-label": state.axisTickFontScale,
+  };
+  return (sizes[className] || 16) * (scaleByClass[className] || 1);
+}
+
+function readFontScale(control) {
+  const value = Number(control?.value);
+  return fontScaleOptions.includes(value) ? value : 1;
 }
 
 function svgConcentrationText(group, value, point, className, attrs = {}) {
@@ -981,9 +999,9 @@ function renderAxisLabels(group, index, fit) {
     BSA: "#EE0000",
   };
   const axisLabels = [
-    ["M (wt.%)", makePoint(100, 0, 0), -42, 20, "end", axisColors.M],
-    ["L (wt.%)", makePoint(0, 100, 0), 42, 20, "start", axisColors.L],
-    ["BSA (wt.%)", makePoint(0, 0, 100), 0, -18, "middle", axisColors.BSA],
+    ["M (wt.%)", makePoint(100, 0, 0), -54, 24, "end", axisColors.M],
+    ["L (wt.%)", makePoint(0, 100, 0), 54, 24, "start", axisColors.L],
+    ["BSA (wt.%)", makePoint(0, 0, 100), 0, -36, "middle", axisColors.BSA],
   ];
 
   if (state.showAxisLabels) {
@@ -1000,7 +1018,7 @@ function renderAxisLabels(group, index, fit) {
       const mTick = textAt(
         group,
         value,
-        screenFor(makePoint(value, 0, 100 - value), index, fit, -12, 4),
+        screenFor(makePoint(value, 0, 100 - value), index, fit, -20, -6),
         "tick-label",
         { "text-anchor": "end" },
       );
@@ -1009,7 +1027,7 @@ function renderAxisLabels(group, index, fit) {
       const lTick = textAt(
         group,
         value,
-        screenFor(makePoint(100 - value, value, 0), index, fit, 0, 18),
+        screenFor(makePoint(100 - value, value, 0), index, fit, 0, 24),
         "tick-label",
         { "text-anchor": "middle" },
       );
@@ -1018,13 +1036,26 @@ function renderAxisLabels(group, index, fit) {
       const bsaTick = textAt(
         group,
         value,
-        screenFor(makePoint(0, 100 - value, value), index, fit, 12, 4),
+        screenFor(makePoint(0, 100 - value, value), index, fit, 20, -6),
         "tick-label",
         { "text-anchor": "start" },
       );
       bsaTick.style.fill = axisColors.BSA;
     }
   }
+}
+
+function lShortcutViewActive() {
+  return (
+    Math.abs(state.rotationX - 0.07) < 0.0001 &&
+    Math.abs(state.rotationY) < 0.0001 &&
+    Math.abs(state.rotationZ) < 0.0001
+  );
+}
+
+function shouldRenderAxisForLayer(index) {
+  if (!lShortcutViewActive()) return true;
+  return index === activeConcentrations()[0]?.index;
 }
 
 function renderSamples(group, concentration, index, fit, samples) {
@@ -1132,7 +1163,9 @@ function renderLayer(concentration, index, fit, samples) {
   );
 
   renderGrid(group, index, fit);
-  renderAxisLabels(group, index, fit);
+  if (shouldRenderAxisForLayer(index)) {
+    renderAxisLabels(group, index, fit);
+  }
   renderSamples(group, concentration, index, fit, samples);
 
   const minX = Math.min(...vertices.map((point) => point.x));
@@ -1210,6 +1243,7 @@ function renderPlot() {
 }
 
 function currentSample() {
+  if (state.sample === null || state.sample === undefined) return null;
   const samples = PHASE_DATA.datasets[state.dataset] || [];
   return samples.find((sample) => Number(sample.sample) === Number(state.sample));
 }
@@ -1224,10 +1258,20 @@ function selectSample(sampleNumber, concentration) {
   updateHighlights();
 }
 
+function clearSampleSelection() {
+  state = {
+    ...state,
+    sample: null,
+  };
+  updateDetail();
+  updateHighlights();
+}
+
 function updateHighlights() {
   const points = els.svg.querySelectorAll(".sample-point");
+  const hasSelection = state.sample !== null && state.sample !== undefined;
   points.forEach((point) => {
-    const isSample = Number(point.dataset.sample) === Number(state.sample);
+    const isSample = hasSelection && Number(point.dataset.sample) === Number(state.sample);
     const isLayer = point.dataset.concentration === state.concentration;
     point.classList.toggle("is-selected-sample", isSample);
     point.classList.toggle("is-selected-layer", isSample && isLayer);
@@ -1348,7 +1392,7 @@ function renderXrdPlot(sample) {
 
   const xrdData = window.XRD_DATA;
   const synthesisLabels = xrdData?.syntheses || ["First synthesis", "Second synthesis", "Third synthesis"];
-  const triplicates = xrdTriplicatesFor(sample, state.concentration);
+  const triplicates = sample ? xrdTriplicatesFor(sample, state.concentration) : [];
   const available = triplicates
     .map((values, index) => ({ values, index }))
     .filter((item) => Array.isArray(item.values) && item.values.length > 1);
@@ -1503,7 +1547,7 @@ function renderIrPlot(sample) {
   if (!els.irPlot || !els.irStatus) return;
 
   const irData = window.IR_DATA;
-  const spectrum = irSpectrumFor(sample, state.concentration);
+  const spectrum = sample ? irSpectrumFor(sample, state.concentration) : null;
   const hasSpectrum = Array.isArray(spectrum) && spectrum.length > 1;
   const geometry = {
     left: irPlot.margin.left,
@@ -1884,7 +1928,22 @@ function stylePhaseChip(chip, phase) {
 
 function updateDetail() {
   const sample = currentSample();
-  if (!sample) return;
+  if (!sample) {
+    els.detailDataset.textContent = state.dataset;
+    els.detailTitle.textContent = "No sample selected";
+    els.selectedConcentration.textContent = "";
+    resetSelectedPhaseStyle();
+    els.selectedPhase.textContent = "";
+    [els.detailM, els.detailL, els.detailBSA, els.detailRatio, els.detailEE, els.detailLC, els.detailIR, els.detailAF]
+      .filter(Boolean)
+      .forEach((item) => {
+        item.textContent = "";
+      });
+    els.phaseRows.replaceChildren();
+    renderXrdPlot(null);
+    renderIrPlot(null);
+    return;
+  }
 
   const phase = sample.phases[state.concentration] || "-";
   const eeEntry = metricEntry("EE", sample, state.concentration);
@@ -2079,16 +2138,27 @@ function updateControlStates() {
   if (els.axisTickToggle) {
     els.axisTickToggle.checked = state.showAxisTicks;
   }
+  if (els.concentrationFontScale) {
+    els.concentrationFontScale.value = String(state.concentrationFontScale);
+  }
+  if (els.axisTickFontScale) {
+    els.axisTickFontScale.value = String(state.axisTickFontScale);
+  }
+  if (els.axisLabelFontScale) {
+    els.axisLabelFontScale.value = String(state.axisLabelFontScale);
+  }
   if (els.layerGapControl) {
     els.layerGapControl.min = String(plot.minLayerGap);
     els.layerGapControl.max = String(plot.maxLayerGap);
     els.layerGapControl.step = String(plot.layerGapStep);
     els.layerGapControl.value = String(state.layerGap);
   }
-  if (els.layerGapValue) {
+  if (els.layerGapNumber) {
     const displayValue = String(Math.round(state.layerGap));
-    els.layerGapValue.value = displayValue;
-    els.layerGapValue.textContent = displayValue;
+    els.layerGapNumber.min = String(plot.minLayerGap);
+    els.layerGapNumber.max = String(plot.maxLayerGap);
+    els.layerGapNumber.step = String(plot.layerGapStep);
+    els.layerGapNumber.value = displayValue;
   }
   els.valueFilters.querySelectorAll("[data-filter-key][data-range-bound]").forEach((input) => {
     const range = state.valueFilters[input.dataset.filterKey];
@@ -2193,6 +2263,12 @@ function bindRotation() {
   els.svg.addEventListener("pointerup", stopDragging);
   els.svg.addEventListener("pointercancel", stopDragging);
 
+  els.svg.addEventListener("dblclick", (event) => {
+    const picked = pickSampleAt(event);
+    if (picked) return;
+    clearSampleSelection();
+  });
+
   els.svg.addEventListener(
     "wheel",
     (event) => {
@@ -2251,6 +2327,9 @@ function bindSpectrumPan(svg, kind) {
 }
 
 function exportStyles() {
+  const layerLabelSize = 18 * state.concentrationFontScale;
+  const axisLabelSize = 13 * state.axisLabelFontScale;
+  const tickLabelSize = 8 * state.axisTickFontScale;
   return `
     svg { background: #ffffff; }
     text { font-family: Arial, sans-serif; letter-spacing: 0; }
@@ -2258,9 +2337,9 @@ function exportStyles() {
     .layer-plane { fill: transparent; stroke: rgba(45, 47, 41, 0.62); stroke-width: 1.25; }
     .layer-grid { stroke: rgba(124, 117, 103, 0.28); stroke-width: 0.9; }
     .layer-edge { stroke: rgba(29, 37, 40, 0.58); stroke-width: 1; }
-    .layer-label { fill: #000000; font-size: 18px; font-weight: 760; }
-    .axis-label { fill: #000000; font-size: 15px; font-weight: 780; }
-    .tick-label { fill: #000000; font-size: 8px; font-weight: 720; }
+    .layer-label { fill: #000000; font-size: ${layerLabelSize}px; font-weight: 760; }
+    .axis-label { fill: #000000; font-size: ${axisLabelSize}px; font-weight: 780; }
+    .tick-label { fill: #000000; font-size: ${tickLabelSize}px; font-weight: 720; }
     .sample-hit { fill: transparent; }
     .sample-dot { stroke: #ffffff; stroke-width: 2; }
     .sample-number { fill: #000000; font-size: 9.5px; font-weight: 800; text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; }
@@ -3028,33 +3107,6 @@ function drawControlsPanel(ctx, x, y, width) {
   });
   cursor += 190;
 
-  drawSectionTitle(ctx, "Navigation", sectionX, cursor);
-  cursor += 18;
-  drawRoundRect(ctx, sectionX, cursor, innerW, 104, 8, "rgba(255,253,248,0.8)", pageExportTheme.line, 1);
-  drawButtonCanvas(ctx, "Rotate", sectionX + 8, cursor + 8, 88, 42, state.dragMode === "rotate");
-  drawButtonCanvas(ctx, "Pan", sectionX + 110, cursor + 8, 78, 42, state.dragMode === "pan");
-  setCanvasFont(ctx, 13, 820);
-  ctx.fillStyle = pageExportTheme.muted;
-  ctx.textAlign = "left";
-  ctx.fillText("Layer spacing", sectionX + 10, cursor + 70);
-  ctx.textAlign = "right";
-  ctx.fillText(String(Math.round(state.layerGap)), sectionX + innerW - 10, cursor + 70);
-  const sliderX = sectionX + 10;
-  const sliderY = cursor + 88;
-  const sliderW = innerW - 20;
-  const sliderRatio = (state.layerGap - plot.minLayerGap) / (plot.maxLayerGap - plot.minLayerGap);
-  ctx.strokeStyle = pageExportTheme.lineStrong;
-  ctx.lineWidth = 3;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(sliderX, sliderY);
-  ctx.lineTo(sliderX + sliderW, sliderY);
-  ctx.stroke();
-  ctx.fillStyle = pageExportTheme.accent || "#0f7f79";
-  ctx.beginPath();
-  ctx.arc(sliderX + sliderW * sliderRatio, sliderY, 7, 0, Math.PI * 2);
-  ctx.fill();
-
   return y + panelHeight;
 }
 
@@ -3206,7 +3258,7 @@ function drawHeader(ctx, x, y, width) {
   ctx.fillText("Institute of Physical and Theoretical Chemistry", logoX + 6, y + 96);
 
   drawRoundRect(ctx, width - 268, y + 26, 216, 54, 8, "#07524f", "#07524f", 1);
-  setCanvasFont(ctx, 17, 850);
+  setCanvasFont(ctx, 12, 850);
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -3350,9 +3402,20 @@ function ensurePageCaptureStyle() {
     }
 
     body.is-page-capturing .page-download-button {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
       align-self: center !important;
       justify-self: end !important;
+      width: 168px !important;
+      min-width: 168px !important;
+      max-width: none !important;
+      height: 44px !important;
+      padding: 0 12px !important;
       margin-left: 0 !important;
+      font-size: 11px !important;
+      line-height: 1.05 !important;
+      white-space: nowrap !important;
       pointer-events: none !important;
     }
 
@@ -3672,10 +3735,51 @@ function bindEvents() {
     renderPlot();
   });
 
+  els.concentrationFontScale?.addEventListener("change", () => {
+    state = {
+      ...state,
+      concentrationFontScale: readFontScale(els.concentrationFontScale),
+    };
+    updateControlStates();
+    renderPlot();
+  });
+
+  els.axisTickFontScale?.addEventListener("change", () => {
+    state = {
+      ...state,
+      axisTickFontScale: readFontScale(els.axisTickFontScale),
+    };
+    updateControlStates();
+    renderPlot();
+  });
+
+  els.axisLabelFontScale?.addEventListener("change", () => {
+    state = {
+      ...state,
+      axisLabelFontScale: readFontScale(els.axisLabelFontScale),
+    };
+    updateControlStates();
+    renderPlot();
+  });
+
   els.layerGapControl?.addEventListener("input", () => {
     state = {
       ...state,
       layerGap: clamp(Number(els.layerGapControl.value), plot.minLayerGap, plot.maxLayerGap),
+    };
+    updateControlStates();
+    renderPlot();
+  });
+
+  els.layerGapNumber?.addEventListener("change", () => {
+    const nextGap = clamp(
+      Number(els.layerGapNumber.value || state.layerGap),
+      plot.minLayerGap,
+      plot.maxLayerGap,
+    );
+    state = {
+      ...state,
+      layerGap: nextGap,
     };
     updateControlStates();
     renderPlot();

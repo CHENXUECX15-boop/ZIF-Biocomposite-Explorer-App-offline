@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Phase Ternary Stack</title>
-    <link rel="stylesheet" href="styles.css?v=20260527-layer-spacing" />
+    <link rel="stylesheet" href="styles.css?v=20260528-layer-input" />
   </head>
   <body>
     <header class="app-header">
@@ -134,29 +134,9 @@
           <div class="filter-group" id="phaseFilters" aria-label="Phase filter"></div>
         </section>
 
-        <section class="control-section">
-          <h2>Navigation</h2>
-          <div class="mode-tabs" aria-label="Drag mode">
-            <button class="mode-tab is-active" type="button" data-drag-mode="rotate">Rotate</button>
-            <button class="mode-tab" type="button" data-drag-mode="pan">Pan</button>
-          </div>
-          <label class="layer-spacing-control">
-            <span class="layer-spacing-head">
-              <span>Layer spacing</span>
-              <output id="layerGapValue" for="layerGapControl">197</output>
-            </span>
-            <input id="layerGapControl" type="range" min="130" max="285" step="1" value="197" />
-          </label>
-        </section>
-
         <section class="control-section glossary-section" aria-label="Glossary">
           <h2>Glossary</h2>
           <dl class="glossary-list">
-            <div class="glossary-group">
-              <dt>Washing</dt>
-              <dd><strong>WW</strong>: deionized water washing only</dd>
-              <dd><strong>EW</strong>: deionized water washing followed by ethanol washing</dd>
-            </div>
             <div class="glossary-group">
               <dt>Composition</dt>
               <dd><strong>L</strong>: 2-methylimidazole</dd>
@@ -164,10 +144,15 @@
               <dd><strong>BSA</strong>: Bovine serum albumin</dd>
             </div>
             <div class="glossary-group">
-              <dt>Metrics</dt>
-              <dd><strong>EE</strong>: Encapsulation efficiency</dd>
-              <dd><strong>LC</strong>: Loading capacity</dd>
-              <dd><strong>IR-ratio</strong>: ATR-IR band ratio</dd>
+              <dt>Washing</dt>
+              <dd><strong>WW</strong>: deionized water washing only</dd>
+              <dd><strong>EW</strong>: deionized water washing followed by ethanol washing</dd>
+            </div>
+            <div class="glossary-group">
+              <dt>Phase</dt>
+              <dd><strong>ZIF-C</strong>: Zn<sub>2</sub>(mIm)<sub>2</sub>(CO<sub>3</sub>)</dd>
+              <dd><strong>sod</strong>: sodalite</dd>
+              <dd><strong>dia</strong>: diamondoid</dd>
             </div>
             <div class="glossary-group">
               <dt>Characterization</dt>
@@ -175,10 +160,10 @@
               <dd><strong>ATR-IR</strong>: Attenuated total reflection infrared spectroscopy</dd>
             </div>
             <div class="glossary-group">
-              <dt>Phase labels</dt>
-              <dd><strong>ZIF-C</strong>: Zn<sub>2</sub>(mIm)<sub>2</sub>(CO<sub>3</sub>)</dd>
-              <dd><strong>sod</strong>: sodalite</dd>
-              <dd><strong>dia</strong>: diamondoid</dd>
+              <dt>Property</dt>
+              <dd><strong>EE</strong>: Encapsulation efficiency</dd>
+              <dd><strong>LC</strong>: Loading capacity</dd>
+              <dd><strong>IR-ratio</strong>: ATR-IR band ratio</dd>
             </div>
           </dl>
         </section>
@@ -205,9 +190,63 @@
                 <span>Axis numbers</span>
               </label>
             </div>
+            <div class="font-size-controls" aria-label="Font size controls">
+              <label class="font-size-control">
+                <span>Concentration size</span>
+                <select id="concentrationFontScale">
+                  <option value="1" selected>1x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                  <option value="2.5">2.5x</option>
+                  <option value="3">3x</option>
+                </select>
+              </label>
+              <label class="font-size-control">
+                <span>Axis number size</span>
+                <select id="axisTickFontScale">
+                  <option value="1" selected>1x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                  <option value="2.5">2.5x</option>
+                  <option value="3">3x</option>
+                </select>
+              </label>
+              <label class="font-size-control">
+                <span>Axis label size</span>
+                <select id="axisLabelFontScale">
+                  <option value="1" selected>1x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                  <option value="2.5">2.5x</option>
+                  <option value="3">3x</option>
+                </select>
+              </label>
+            </div>
             <div class="legend" id="legend" aria-label="Phase legend"></div>
           </div>
           <div class="figure-controls">
+            <div class="navigation-toolbar" aria-label="Navigation controls">
+              <div class="mode-tabs" aria-label="Drag mode">
+                <button class="mode-tab is-active" type="button" data-drag-mode="rotate">Rotate</button>
+                <button class="mode-tab" type="button" data-drag-mode="pan">Pan</button>
+              </div>
+              <label class="layer-spacing-control">
+                <span class="layer-spacing-head">
+                  <span>Layer spacing</span>
+                  <input
+                    id="layerGapNumber"
+                    class="layer-spacing-number"
+                    type="number"
+                    min="130"
+                    max="285"
+                    step="1"
+                    value="197"
+                    aria-label="Layer spacing value"
+                  />
+                </span>
+                <input id="layerGapControl" type="range" min="130" max="285" step="1" value="197" />
+              </label>
+            </div>
             <div class="figure-actions">
               <button id="resetView" class="tool-button" type="button">Reset View</button>
               <button id="downloadPng" class="tool-button primary" type="button">Download PNG</button>
@@ -336,6 +375,6 @@
     <script src="data/xrd-data.js"></script>
     <script src="data/ir-data.js"></script>
     <script src="vendor/html2canvas.min.js"></script>
-    <script src="app.js?v=20260527-percent-brackets"></script>
+    <script src="app.js?v=20260528-layer-input"></script>
   </body>
 </html>

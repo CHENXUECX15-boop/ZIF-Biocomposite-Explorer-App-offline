@@ -140,7 +140,7 @@ const metricPalettes = {
   EE: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
   LC: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
   IR: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
-  AF: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
+  AF: { low: "#FFFFFF", high: "#A5A5A5", missing: "#4A4A4A" },
 };
 
 const valueFilterKeys = ["M", "L", "BSA", "EE", "LC", "IR", "AF"];
@@ -155,6 +155,7 @@ const valueFilterLabels = {
 };
 
 const fontScaleOptions = [0.5, 0.75, 1, 1.5, 2, 2.5, 3];
+const sampleSizeLevels = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
 
 const defaultValueFilters = Object.freeze({
   M: Object.freeze({ min: 0, max: 100 }),
@@ -217,6 +218,8 @@ let state = {
   concentrationFontScale: 1,
   axisTickFontScale: 1,
   axisLabelFontScale: 1,
+  sampleCircleSizeLevel: 0,
+  sampleNumberSizeLevel: 0,
   xrdZoom: 1,
   xrdPan: 0,
   irZoom: 1,
@@ -248,6 +251,8 @@ const els = {
   concentrationFontScale: document.getElementById("concentrationFontScale"),
   axisTickFontScale: document.getElementById("axisTickFontScale"),
   axisLabelFontScale: document.getElementById("axisLabelFontScale"),
+  sampleCircleSizeLevel: document.getElementById("sampleCircleSizeLevel"),
+  sampleNumberSizeLevel: document.getElementById("sampleNumberSizeLevel"),
   layerGapControl: document.getElementById("layerGapControl"),
   layerGapNumber: document.getElementById("layerGapNumber"),
   valueFilters: document.getElementById("valueFilters"),
@@ -337,6 +342,18 @@ function scaledSampleSize(value) {
   return scaledSize(value) * (isExporting ? 1.6 : 1);
 }
 
+function sampleSizeLevelScale(level) {
+  return 1 + clamp(Number(level) || 0, -5, 5) * 0.1;
+}
+
+function scaledSampleCircleSize(value) {
+  return scaledSampleSize(value) * sampleSizeLevelScale(state.sampleCircleSizeLevel);
+}
+
+function scaledSampleNumberSize(value) {
+  return scaledSampleSize(value) * sampleSizeLevelScale(state.sampleNumberSizeLevel);
+}
+
 function textSizeForClass(className) {
   const sizes = {
     "layer-label": 21,
@@ -355,6 +372,11 @@ function textSizeForClass(className) {
 function readFontScale(control) {
   const value = Number(control?.value);
   return fontScaleOptions.includes(value) ? value : 1;
+}
+
+function readSampleSizeLevel(control) {
+  const value = Number(control?.value);
+  return sampleSizeLevels.includes(value) ? value : 0;
 }
 
 function svgConcentrationText(group, value, point, className, attrs = {}) {
@@ -1156,11 +1178,18 @@ function renderAxisLabels(group, index, fit) {
     L: "#008A2E",
     BSA: "#EE0000",
   };
-  const axisLabels = [
-    ["M (wt.%)", makePoint(100, 0, 0), -54, 24, "end", axisColors.M],
-    ["L (wt.%)", makePoint(0, 100, 0), 54, 24, "start", axisColors.L],
-    ["BSA (wt.%)", makePoint(0, 0, 100), 0, -36, "middle", axisColors.BSA],
-  ];
+  const isLView = lShortcutViewActive();
+  const axisLabels = isLView
+    ? [
+        ["M (wt.%)", makePoint(100, 0, 0), -92, 30, "end", axisColors.M],
+        ["L (wt.%)", makePoint(0, 100, 0), 92, 30, "start", axisColors.L],
+        ["BSA (wt.%)", makePoint(0, 0, 100), 0, -106, "middle", axisColors.BSA],
+      ]
+    : [
+        ["M (wt.%)", makePoint(100, 0, 0), -54, 24, "end", axisColors.M],
+        ["L (wt.%)", makePoint(0, 100, 0), 54, 24, "start", axisColors.L],
+        ["BSA (wt.%)", makePoint(0, 0, 100), 0, -36, "middle", axisColors.BSA],
+      ];
 
   if (state.showAxisLabels) {
     axisLabels.forEach(([label, local, dx, dy, anchor, color]) => {
@@ -1173,10 +1202,17 @@ function renderAxisLabels(group, index, fit) {
 
   if (state.showAxisTicks) {
     for (let value = 20; value <= 100; value += 20) {
+      const lViewTopTick = isLView && value === 100;
       const mTick = textAt(
         group,
         value,
-        screenFor(makePoint(value, 0, 100 - value), index, fit, -20, -6),
+        screenFor(
+          makePoint(value, 0, 100 - value),
+          index,
+          fit,
+          isLView ? -76 : -20,
+          isLView && value === 100 ? 24 : isLView ? -4 : -6,
+        ),
         "tick-label",
         { "text-anchor": "end" },
       );
@@ -1185,7 +1221,13 @@ function renderAxisLabels(group, index, fit) {
       const lTick = textAt(
         group,
         value,
-        screenFor(makePoint(100 - value, value, 0), index, fit, 0, 24),
+        screenFor(
+          makePoint(100 - value, value, 0),
+          index,
+          fit,
+          0,
+          isLView ? 24 : 24,
+        ),
         "tick-label",
         { "text-anchor": "middle" },
       );
@@ -1194,9 +1236,15 @@ function renderAxisLabels(group, index, fit) {
       const bsaTick = textAt(
         group,
         value,
-        screenFor(makePoint(0, 100 - value, value), index, fit, 20, -6),
+        screenFor(
+          makePoint(0, 100 - value, value),
+          index,
+          fit,
+          lViewTopTick ? 0 : isLView ? 76 : 20,
+          lViewTopTick ? -76 : isLView ? -4 : -6,
+        ),
         "tick-label",
-        { "text-anchor": "start" },
+        { "text-anchor": lViewTopTick ? "middle" : "start" },
       );
       bsaTick.style.fill = axisColors.BSA;
     }
@@ -1255,19 +1303,19 @@ function renderSamples(group, concentration, index, fit, samples) {
         class: "sample-hit",
         cx: point.x,
         cy: point.y,
-        r: scaledSampleSize(25),
+        r: scaledSampleCircleSize(25),
       }),
       createSvgElement("circle", {
         class: "sample-ring",
         cx: point.x,
         cy: point.y,
-        r: scaledSampleSize(18),
+        r: scaledSampleCircleSize(18),
       }),
       createSvgElement("circle", {
         class: "sample-dot",
         cx: point.x,
         cy: point.y,
-        r: scaledSampleSize(12.5),
+        r: scaledSampleCircleSize(12.5),
         fill: dotFill,
       }),
     ];
@@ -1277,7 +1325,7 @@ function renderSamples(group, concentration, index, fit, samples) {
         class: "sample-number",
         x: point.x,
         y: point.y + 0.6,
-        style: `font-size: ${scaledSampleSize(textSizeForClass("sample-number"))}px`,
+        style: `font-size: ${scaledSampleNumberSize(textSizeForClass("sample-number"))}px`,
       });
       numberNode.textContent = sample.sample;
       sampleNodes.push(numberNode);
@@ -2187,7 +2235,7 @@ function pickSampleAt(event) {
   const point = clientToSvgPoint(event);
   if (!point) return null;
 
-  const radius = 18;
+  const radius = scaledSampleCircleSize(18);
   const radiusSquared = radius * radius;
   let best = null;
 
@@ -2311,6 +2359,12 @@ function updateControlStates() {
   }
   if (els.axisLabelFontScale) {
     els.axisLabelFontScale.value = String(state.axisLabelFontScale);
+  }
+  if (els.sampleCircleSizeLevel) {
+    els.sampleCircleSizeLevel.value = String(state.sampleCircleSizeLevel);
+  }
+  if (els.sampleNumberSizeLevel) {
+    els.sampleNumberSizeLevel.value = String(state.sampleNumberSizeLevel);
   }
   if (els.layerGapControl) {
     els.layerGapControl.min = String(plot.minLayerGap);
@@ -2933,7 +2987,7 @@ function canvasToBlob(canvas) {
 }
 
 const pageExportTheme = {
-  bg: "#f7f4ed",
+  bg: "rgba(255, 255, 255, 0)",
   surface: "#ffffff",
   surfaceStrong: "#efe7d8",
   ink: "#1d2528",
@@ -3083,7 +3137,7 @@ function drawPhaseCanvasText(ctx, phase, x, y, size = 28, weight = 900, stats = 
 
       if (options.showError !== false && Number.isFinite(component.error)) {
         const errorText = ` +/- ${formatPhasePercent(component.error)}%`;
-        setCanvasFont(ctx, size * 0.35, weight);
+        setCanvasFont(ctx, size * 0.18, weight);
         ctx.fillText(errorText, cursor, y);
         cursor += ctx.measureText(errorText).width;
       }
@@ -3569,6 +3623,14 @@ function ensurePageCaptureStyle() {
       flex: 0 0 auto !important;
     }
 
+    body.is-page-capturing .ptc-logo-image {
+      display: block !important;
+      width: auto !important;
+      height: 70px !important;
+      max-width: 360px !important;
+      object-fit: contain !important;
+    }
+
     body.is-page-capturing .ptc-mark {
       width: 76px !important;
       height: 45.6px !important;
@@ -3767,7 +3829,7 @@ async function renderCurrentPageWithHtml2Canvas() {
 
   const { width, height } = pageScrollSize();
   const options = {
-    backgroundColor: pageExportTheme.bg,
+    backgroundColor: null,
     scale: pageExportScale(),
     useCORS: true,
     allowTaint: false,
@@ -3951,6 +4013,24 @@ function bindEvents() {
     renderPlot();
   });
 
+  els.sampleCircleSizeLevel?.addEventListener("change", () => {
+    state = {
+      ...state,
+      sampleCircleSizeLevel: readSampleSizeLevel(els.sampleCircleSizeLevel),
+    };
+    updateControlStates();
+    renderPlot();
+  });
+
+  els.sampleNumberSizeLevel?.addEventListener("change", () => {
+    state = {
+      ...state,
+      sampleNumberSizeLevel: readSampleSizeLevel(els.sampleNumberSizeLevel),
+    };
+    updateControlStates();
+    renderPlot();
+  });
+
   els.layerGapControl?.addEventListener("input", () => {
     state = {
       ...state,
@@ -3960,9 +4040,11 @@ function bindEvents() {
     renderPlot();
   });
 
-  els.layerGapNumber?.addEventListener("change", () => {
+  const updateLayerGapFromNumber = (force = false) => {
+    const rawValue = String(els.layerGapNumber?.value || "").trim();
+    if (!force && rawValue.length < 3) return;
     const nextGap = clamp(
-      Number(els.layerGapNumber.value || state.layerGap),
+      Number(rawValue || state.layerGap),
       plot.minLayerGap,
       plot.maxLayerGap,
     );
@@ -3972,7 +4054,10 @@ function bindEvents() {
     };
     updateControlStates();
     renderPlot();
-  });
+  };
+
+  els.layerGapNumber?.addEventListener("input", () => updateLayerGapFromNumber(false));
+  els.layerGapNumber?.addEventListener("change", () => updateLayerGapFromNumber(true));
 
   els.valueFilters.addEventListener("input", (event) => {
     const input = event.target.closest("[data-filter-key][data-range-bound]");

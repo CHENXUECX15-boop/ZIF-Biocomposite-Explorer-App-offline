@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  --bg: #f7f4ed;
+  --bg: transparent;
   --surface: #ffffff;
   --surface-strong: #efe7d8;
   --ink: #1d2528;
@@ -22,6 +22,10 @@
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  background: transparent;
 }
 
 body {
@@ -63,7 +67,7 @@ input {
   align-items: center;
   gap: clamp(8px, 0.9vw, 14px);
   width: auto;
-  max-width: min(56vw, 720px);
+  max-width: min(58vw, 760px);
   min-width: 0;
   padding: 4px 0;
   color: var(--ink);
@@ -75,9 +79,16 @@ input {
   display: inline-flex;
   flex: 0 1 auto;
   align-items: center;
-  gap: clamp(6px, 0.55vw, 10px);
   min-width: 0;
   line-height: 1;
+}
+
+.ptc-logo-image {
+  display: block;
+  width: auto;
+  height: clamp(54px, 5vw, 92px);
+  max-width: min(34vw, 430px);
+  object-fit: contain;
 }
 
 .ptc-mark {
@@ -537,7 +548,7 @@ h2 {
 .plot-toolbar .mode-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  min-height: 36px;
+  min-height: 42px;
   padding: 4px;
   width: 100%;
 }
@@ -545,24 +556,40 @@ h2 {
 .plot-toolbar .mode-tab {
   width: 100%;
   min-width: 0;
-  padding: 8px 10px;
+  min-height: 34px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-weight: 760;
+  line-height: 1.1;
 }
 
 .plot-toolbar .layer-spacing-control {
   width: 100%;
-  min-height: 36px;
-  gap: 5px;
-  padding: 0;
-  border: 0;
-  background: transparent;
+  min-height: 58px;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #ffffff;
 }
 
 .plot-toolbar .layer-spacing-head {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .plot-toolbar .layer-spacing-number {
-  min-width: 28px;
+  width: 54px;
+  min-width: 54px;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  background: #ffffff;
+}
+
+.plot-toolbar .layer-spacing-number:focus {
+  border-color: var(--accent);
+  outline: 2px solid rgba(15, 127, 121, 0.16);
 }
 
 .font-size-control {
@@ -615,8 +642,11 @@ h2 {
 .figure-controls .tool-button {
   width: 100%;
   min-width: 0;
-  min-height: 44px;
-  padding: 10px 12px;
+  min-height: 42px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-weight: 760;
+  line-height: 1.1;
   white-space: nowrap;
 }
 
@@ -689,7 +719,7 @@ h2 {
   display: inline-flex;
   flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: var(--legend-gap);
   width: var(--legend-width);
   max-width: calc(100% - 40px);
@@ -726,6 +756,7 @@ h2 {
   width: 100%;
   min-width: 0;
   gap: var(--legend-item-gap);
+  justify-content: center;
 }
 
 .phase-legend-dock .metric-label {
@@ -1018,6 +1049,11 @@ sup {
   overflow-wrap: anywhere;
 }
 
+.phase-result strong.is-mixed-phase {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
 .phase-result strong strong,
 .phase-chip strong,
 .phase-component {
@@ -1033,10 +1069,11 @@ sup {
 .phase-result strong .phase-component {
   font-size: inherit;
   line-height: inherit;
+  white-space: nowrap;
 }
 
 .phase-error {
-  font-size: 0.35em;
+  font-size: 0.18em;
   font-weight: inherit;
   line-height: inherit;
 }

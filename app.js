@@ -170,11 +170,11 @@ const defaultValueFilters = Object.freeze({
 const plot = {
   width: 1320,
   height: 1280,
-  triangleWidth: 530,
-  triangleHeight: 459,
+  triangleWidth: 500,
+  triangleHeight: 433,
   minLayerGap: 130,
   maxLayerGap: 285,
-  defaultLayerGap: 590 / 3,
+  defaultLayerGap: 200,
   layerGapStep: 1,
   margin: 76,
   exportScale: 4,
@@ -1201,50 +1201,125 @@ function renderAxisLabels(group, index, fit) {
   }
 
   if (state.showAxisTicks) {
+    const centroid = makePoint(100 / 3, 100 / 3, 100 / 3);
+    const normalizeVector = (vector) => {
+      const length = Math.hypot(vector.x, vector.y) || 1;
+      return { x: vector.x / length, y: vector.y / length };
+    };
+    const outwardNormal = (edgeStart, edgeEnd) => {
+      const a = screenFor(edgeStart, index, fit);
+      const b = screenFor(edgeEnd, index, fit);
+      const center = screenFor(centroid, index, fit);
+      const midpoint = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      const tangent = { x: b.x - a.x, y: b.y - a.y };
+      let normal = normalizeVector({ x: -tangent.y, y: tangent.x });
+      const awayFromCenter = { x: midpoint.x - center.x, y: midpoint.y - center.y };
+      if (normal.x * awayFromCenter.x + normal.y * awayFromCenter.y < 0) {
+        normal = { x: -normal.x, y: -normal.y };
+      }
+      return normal;
+    };
+    const lViewTickPoint = (local, edgeStart, edgeEnd, distance, mode = "normal") => {
+      const point = screenFor(local, index, fit);
+      const normal = outwardNormal(edgeStart, edgeEnd);
+      if (mode === "horizontal") {
+        return {
+          ...point,
+          x: point.x + Math.sign(normal.x || 1) * distance,
+        };
+      }
+      if (mode === "vertical") {
+        return {
+          ...point,
+          y: point.y + Math.sign(normal.y || 1) * distance,
+        };
+      }
+      return {
+        ...point,
+        x: point.x + normal.x * distance,
+        y: point.y + normal.y * distance,
+      };
+    };
+    const lViewVertexPoint = (local, distance) => {
+      const point = screenFor(local, index, fit);
+      const center = screenFor(centroid, index, fit);
+      const normal = normalizeVector({ x: point.x - center.x, y: point.y - center.y });
+      return {
+        ...point,
+        x: point.x + normal.x * distance,
+        y: point.y + normal.y * distance,
+      };
+    };
+
     for (let value = 20; value <= 100; value += 20) {
       const lViewTopTick = isLView && value === 100;
+      const lViewSideTickAttrs = isLView
+        ? { "text-anchor": "end", "dominant-baseline": "central", "alignment-baseline": "central" }
+        : { "text-anchor": "end" };
+      const lViewBsaTickAttrs = isLView
+        ? {
+            "text-anchor": lViewTopTick ? "middle" : "start",
+            "dominant-baseline": "central",
+            "alignment-baseline": "central",
+          }
+        : { "text-anchor": lViewTopTick ? "middle" : "start" };
+      const mIntersection = screenFor(makePoint(value, 0, 100 - value), index, fit);
+      const mPoint = isLView
+        ? lViewTickPoint(
+            makePoint(value, -5, 115 - value),
+            makePoint(100, 0, 0),
+            makePoint(0, 0, 100),
+            32,
+            "horizontal",
+          )
+        : { ...mIntersection, x: mIntersection.x - 20 };
       const mTick = textAt(
         group,
         value,
-        screenFor(
-          makePoint(value, 0, 100 - value),
-          index,
-          fit,
-          isLView ? -76 : -20,
-          isLView && value === 100 ? 24 : isLView ? -4 : -6,
-        ),
+        mPoint,
         "tick-label",
-        { "text-anchor": "end" },
+        lViewSideTickAttrs,
       );
       mTick.style.fill = axisColors.M;
 
+      const lPoint = isLView
+        ? lViewTickPoint(
+            makePoint(100 - value, value, 0),
+            makePoint(100, 0, 0),
+            makePoint(0, 100, 0),
+            26,
+            "vertical",
+          )
+        : screenFor(makePoint(100 - value, value, 0), index, fit, 0, 24);
       const lTick = textAt(
         group,
         value,
-        screenFor(
-          makePoint(100 - value, value, 0),
-          index,
-          fit,
-          0,
-          isLView ? 24 : 24,
-        ),
+        lPoint,
         "tick-label",
-        { "text-anchor": "middle" },
+        isLView
+          ? { "text-anchor": "middle", "dominant-baseline": "central", "alignment-baseline": "central" }
+          : { "text-anchor": "middle" },
       );
       lTick.style.fill = axisColors.L;
 
+      const bsaIntersection = screenFor(makePoint(0, 100 - value, value), index, fit);
+      const bsaPoint = isLView
+        ? value === 100
+          ? lViewVertexPoint(makePoint(0, 0, 100), 82)
+          : lViewTickPoint(
+              makePoint(0, 100 - value, value),
+              makePoint(0, 0, 100),
+              makePoint(0, 0, 100),
+              32,
+              "horizontal",
+            )
+        : { ...bsaIntersection, x: bsaIntersection.x + (lViewTopTick ? 0 : 20) };
       const bsaTick = textAt(
         group,
         value,
-        screenFor(
-          makePoint(0, 100 - value, value),
-          index,
-          fit,
-          lViewTopTick ? 0 : isLView ? 76 : 20,
-          lViewTopTick ? -76 : isLView ? -4 : -6,
-        ),
+        bsaPoint,
         "tick-label",
-        { "text-anchor": lViewTopTick ? "middle" : "start" },
+        lViewBsaTickAttrs,
       );
       bsaTick.style.fill = axisColors.BSA;
     }
@@ -3652,6 +3727,31 @@ function ensurePageCaptureStyle() {
       top: auto !important;
     }
 
+    body.is-page-capturing .app-shell {
+      align-items: stretch !important;
+    }
+
+    body.is-page-capturing .controls-panel,
+    body.is-page-capturing .visual-surface,
+    body.is-page-capturing .detail-panel {
+      align-self: stretch !important;
+      height: auto !important;
+      min-height: 0 !important;
+    }
+
+    body.is-page-capturing .detail-panel {
+      position: static !important;
+      top: auto !important;
+    }
+
+    body.is-page-capturing .visual-surface {
+      grid-template-rows: auto minmax(0, 1fr) !important;
+    }
+
+    body.is-page-capturing .plot-frame {
+      min-height: 0 !important;
+    }
+
     body.is-page-capturing .page-download-button {
       display: inline-flex !important;
       align-items: center !important;
@@ -3846,6 +3946,11 @@ async function renderCurrentPageWithHtml2Canvas() {
     onclone: (clonedDocument) => {
       clonedDocument.documentElement.classList.add("is-page-capturing");
       clonedDocument.body.classList.add("is-page-capturing");
+      const clonedLogo = clonedDocument.querySelector(".ptc-logo-image");
+      if (clonedLogo) {
+        clonedLogo.removeAttribute("srcset");
+        clonedLogo.setAttribute("src", "PTC.png?v=20260529");
+      }
       const clonedButton = clonedDocument.getElementById("downloadPagePng");
       if (clonedButton) {
         clonedButton.disabled = false;

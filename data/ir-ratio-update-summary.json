@@ -1,0 +1,82 @@
+﻿{
+    "Excel":  "D:\\Users\\19104\\Desktop\\digital chemi\\project\\ATR_IR_selected_X_values.xlsx",
+    "UpdatedFile":  "D:\\Users\\19104\\Documents\\New project\\phase-ternary-site\\data\\ir-ratio-data.js",
+    "TotalExcelValues":  360,
+    "ChangedValues":  9,
+    "AddedValues":  0,
+    "RemovedValues":  0,
+    "Changes":  [
+                    {
+                        "Dataset":  "WW",
+                        "Sample":  1,
+                        "Concentration":  "100 mg/mL",
+                        "Old":  100.013628,
+                        "New":  98.391205,
+                        "Delta":  -1.622422
+                    },
+                    {
+                        "Dataset":  "WW",
+                        "Sample":  4,
+                        "Concentration":  "50 mg/mL",
+                        "Old":  101.016949,
+                        "New":  99.019771,
+                        "Delta":  -1.997178
+                    },
+                    {
+                        "Dataset":  "WW",
+                        "Sample":  4,
+                        "Concentration":  "100 mg/mL",
+                        "Old":  102.228336,
+                        "New":  99.464668,
+                        "Delta":  -2.763668
+                    },
+                    {
+                        "Dataset":  "WW",
+                        "Sample":  6,
+                        "Concentration":  "100 mg/mL",
+                        "Old":  100.959024,
+                        "New":  99.342293,
+                        "Delta":  -1.61673
+                    },
+                    {
+                        "Dataset":  "WW",
+                        "Sample":  7,
+                        "Concentration":  "100 mg/mL",
+                        "Old":  102.137609,
+                        "New":  96.497318,
+                        "Delta":  -5.640291
+                    },
+                    {
+                        "Dataset":  "WW",
+                        "Sample":  8,
+                        "Concentration":  "50 mg/mL",
+                        "Old":  102.606178,
+                        "New":  96.989051,
+                        "Delta":  -5.617127
+                    },
+                    {
+                        "Dataset":  "WW",
+                        "Sample":  12,
+                        "Concentration":  "12.5 mg/mL",
+                        "Old":  103.866995,
+                        "New":  98.689445,
+                        "Delta":  -5.17755
+                    },
+                    {
+                        "Dataset":  "WW",
+                        "Sample":  14,
+                        "Concentration":  "12.5 mg/mL",
+                        "Old":  105.341074,
+                        "New":  97.422819,
+                        "Delta":  -7.918255
+                    },
+                    {
+                        "Dataset":  "WW",
+                        "Sample":  14,
+                        "Concentration":  "50 mg/mL",
+                        "Old":  112.945591,
+                        "New":  90.936556,
+                        "Delta":  -22.009035
+                    }
+                ]
+}

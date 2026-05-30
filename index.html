@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Phase Ternary Stack</title>
-    <link rel="stylesheet" href="styles.css?v=20260528-logo-transparent" />
+    <link rel="stylesheet" href="styles.css?v=20260529-concentration-layout" />
   </head>
   <body>
     <header class="app-header">
@@ -20,7 +20,7 @@
           <span class="ptc-logo-lockup">
             <img
               class="ptc-logo-image"
-              src="assets/ptc-logo-web.png?v=20260528"
+              src="PTC.png?v=20260529"
               alt="PTC Institute of Physical and Theoretical Chemistry"
             />
           </span>
@@ -56,6 +56,11 @@
             <button class="metric-tab" type="button" data-visualization="IR">IR-ratio [%]</button>
             <button class="metric-tab" type="button" data-visualization="AF">Amorphous fraction [%]</button>
           </div>
+        </section>
+
+        <section class="control-section">
+          <h2>Phase</h2>
+          <div class="filter-group" id="phaseFilters" aria-label="Phase filter"></div>
         </section>
 
         <section class="control-section">
@@ -119,11 +124,6 @@
             </label>
           </div>
           <button id="resetValueFilters" class="filter-reset" type="button">Reset filters</button>
-        </section>
-
-        <section class="control-section">
-          <h2>Phase</h2>
-          <div class="filter-group" id="phaseFilters" aria-label="Phase filter"></div>
         </section>
 
         <section class="control-section glossary-section" aria-label="Glossary">
@@ -222,33 +222,33 @@
               <label class="font-size-control">
                 <span>Sample circle size</span>
                 <select id="sampleCircleSizeLevel">
-                  <option value="-5">-5</option>
-                  <option value="-4">-4</option>
-                  <option value="-3">-3</option>
-                  <option value="-2">-2</option>
-                  <option value="-1">-1</option>
-                  <option value="0" selected>0</option>
-                  <option value="1">+1</option>
-                  <option value="2">+2</option>
-                  <option value="3">+3</option>
-                  <option value="4">+4</option>
-                  <option value="5">+5</option>
+                  <option value="-5">0.5x</option>
+                  <option value="-4">0.6x</option>
+                  <option value="-3">0.7x</option>
+                  <option value="-2">0.8x</option>
+                  <option value="-1">0.9x</option>
+                  <option value="0" selected>1x</option>
+                  <option value="1">1.1x</option>
+                  <option value="2">1.2x</option>
+                  <option value="3">1.3x</option>
+                  <option value="4">1.4x</option>
+                  <option value="5">1.5x</option>
                 </select>
               </label>
               <label class="font-size-control">
                 <span>Sample number size</span>
                 <select id="sampleNumberSizeLevel">
-                  <option value="-5">-5</option>
-                  <option value="-4">-4</option>
-                  <option value="-3">-3</option>
-                  <option value="-2">-2</option>
-                  <option value="-1">-1</option>
-                  <option value="0" selected>0</option>
-                  <option value="1">+1</option>
-                  <option value="2">+2</option>
-                  <option value="3">+3</option>
-                  <option value="4">+4</option>
-                  <option value="5">+5</option>
+                  <option value="-5">0.5x</option>
+                  <option value="-4">0.6x</option>
+                  <option value="-3">0.7x</option>
+                  <option value="-2">0.8x</option>
+                  <option value="-1">0.9x</option>
+                  <option value="0" selected>1x</option>
+                  <option value="1">1.1x</option>
+                  <option value="2">1.2x</option>
+                  <option value="3">1.3x</option>
+                  <option value="4">1.4x</option>
+                  <option value="5">1.5x</option>
                 </select>
               </label>
             </div>
@@ -274,11 +274,11 @@
                     min="130"
                     max="285"
                     step="1"
-                    value="197"
+                    value="200"
                     aria-label="Layer spacing value"
                   />
                 </span>
-                <input id="layerGapControl" type="range" min="130" max="285" step="1" value="197" />
+                <input id="layerGapControl" type="range" min="130" max="285" step="1" value="200" />
               </label>
             </div>
           </div>
@@ -405,6 +405,6 @@
     <script src="data/xrd-data.js"></script>
     <script src="data/ir-data.js"></script>
     <script src="vendor/html2canvas.min.js"></script>
-    <script src="app.js?v=20260528-layer-input"></script>
+    <script src="app.js?v=20260529-layout-fit"></script>
   </body>
 </html>

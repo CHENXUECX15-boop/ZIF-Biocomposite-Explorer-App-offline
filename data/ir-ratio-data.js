@@ -2,7 +2,7 @@
 window.METRIC_DATA.metrics = window.METRIC_DATA.metrics || {};
 window.METRIC_DATA.metrics.IR = {
     "label":  "ATR-IR band ratio",
-    "shortLabel":  "ATR-IR band ratio%",
+    "shortLabel":  "IR-ratio%",
     "unit":  "%",
     "valueLabel":  "ATR-IR band ratio [%]",
     "datasets":  {
@@ -21,7 +21,7 @@ window.METRIC_DATA.metrics.IR = {
                                                            "value":  93.634534479604909
                                                        },
                                           "100 mg/mL":  {
-                                                            "value":  100.01362769146907
+                                                            "value":  98.391205255396159
                                                         }
                                       },
                                 "2":  {
@@ -66,13 +66,13 @@ window.METRIC_DATA.metrics.IR = {
                                                            "value":  95.3864199139841
                                                        },
                                           "50 mg/mL":  {
-                                                           "value":  101.01694915254238
+                                                           "value":  99.019770726034224
                                                        },
                                           "75 mg/mL":  {
                                                            "value":  96.782597368763845
                                                        },
                                           "100 mg/mL":  {
-                                                            "value":  102.22833562585969
+                                                            "value":  99.464668094218425
                                                         }
                                       },
                                 "5":  {
@@ -106,7 +106,7 @@ window.METRIC_DATA.metrics.IR = {
                                                            "value":  98.8945186549977
                                                        },
                                           "100 mg/mL":  {
-                                                            "value":  100.95902353966871
+                                                            "value":  99.342293394338
                                                         }
                                       },
                                 "7":  {
@@ -123,7 +123,7 @@ window.METRIC_DATA.metrics.IR = {
                                                            "value":  98.502604166666671
                                                        },
                                           "100 mg/mL":  {
-                                                            "value":  102.13760855043421
+                                                            "value":  96.497317765856721
                                                         }
                                       },
                                 "8":  {
@@ -134,7 +134,7 @@ window.METRIC_DATA.metrics.IR = {
                                                            "value":  86.895557594024382
                                                        },
                                           "50 mg/mL":  {
-                                                           "value":  102.60617760617761
+                                                           "value":  96.989051094890513
                                                        },
                                           "75 mg/mL":  {
                                                            "value":  87.12507977026165
@@ -196,7 +196,7 @@ window.METRIC_DATA.metrics.IR = {
                                        },
                                 "12":  {
                                            "12.5 mg/mL":  {
-                                                              "value":  103.86699507389163
+                                                              "value":  98.689445354551836
                                                           },
                                            "25 mg/mL":  {
                                                             "value":  96
@@ -230,13 +230,13 @@ window.METRIC_DATA.metrics.IR = {
                                        },
                                 "14":  {
                                            "12.5 mg/mL":  {
-                                                              "value":  105.34107402031931
+                                                              "value":  97.4228187919463
                                                           },
                                            "25 mg/mL":  {
                                                             "value":  98.269123394751531
                                                         },
                                            "50 mg/mL":  {
-                                                            "value":  112.94559099437147
+                                                            "value":  90.936555891238669
                                                         },
                                            "75 mg/mL":  {
                                                             "value":  89.109117462966822

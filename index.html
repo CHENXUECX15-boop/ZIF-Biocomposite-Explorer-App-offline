@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Phase Ternary Stack</title>
-    <link rel="stylesheet" href="styles.css?v=20260529-concentration-layout" />
+    <link rel="stylesheet" href="styles.css?v=20260531-detail-heading-15" />
   </head>
   <body>
     <header class="app-header">
@@ -21,10 +21,15 @@
             <img
               class="ptc-logo-image"
               src="PTC.png?v=20260529"
+              width="2023"
+              height="530"
               alt="PTC Institute of Physical and Theoretical Chemistry"
             />
           </span>
-          <span class="ptc-university-text">GRAZ UNIVERSITY OF TECHNOLOGY</span>
+          <span class="ptc-university-text" aria-label="TU Graz, Graz University of Technology">
+            <span class="ptc-university-short">TU Graz</span>
+            <span>Graz University of Technology</span>
+          </span>
         </a>
       </div>
       <button id="downloadPagePng" class="tool-button primary page-download-button" type="button">
@@ -55,6 +60,7 @@
             <button class="metric-tab" type="button" data-visualization="LC">LC%</button>
             <button class="metric-tab" type="button" data-visualization="IR">IR-ratio [%]</button>
             <button class="metric-tab" type="button" data-visualization="AF">Amorphous fraction [%]</button>
+            <button class="metric-tab" type="button" data-visualization="FRAMEWORK">Framework ratio</button>
           </div>
         </section>
 
@@ -222,33 +228,25 @@
               <label class="font-size-control">
                 <span>Sample circle size</span>
                 <select id="sampleCircleSizeLevel">
-                  <option value="-5">0.5x</option>
-                  <option value="-4">0.6x</option>
-                  <option value="-3">0.7x</option>
-                  <option value="-2">0.8x</option>
-                  <option value="-1">0.9x</option>
-                  <option value="0" selected>1x</option>
-                  <option value="1">1.1x</option>
-                  <option value="2">1.2x</option>
-                  <option value="3">1.3x</option>
-                  <option value="4">1.4x</option>
-                  <option value="5">1.5x</option>
+                  <option value="0.5">-1x</option>
+                  <option value="0.75">-0.5x</option>
+                  <option value="1" selected>1x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                  <option value="2.5">2.5x</option>
+                  <option value="3">3x</option>
                 </select>
               </label>
               <label class="font-size-control">
                 <span>Sample number size</span>
                 <select id="sampleNumberSizeLevel">
-                  <option value="-5">0.5x</option>
-                  <option value="-4">0.6x</option>
-                  <option value="-3">0.7x</option>
-                  <option value="-2">0.8x</option>
-                  <option value="-1">0.9x</option>
-                  <option value="0" selected>1x</option>
-                  <option value="1">1.1x</option>
-                  <option value="2">1.2x</option>
-                  <option value="3">1.3x</option>
-                  <option value="4">1.4x</option>
-                  <option value="5">1.5x</option>
+                  <option value="0.5">-1x</option>
+                  <option value="0.75">-0.5x</option>
+                  <option value="1" selected>1x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                  <option value="2.5">2.5x</option>
+                  <option value="3">3x</option>
                 </select>
               </label>
             </div>
@@ -304,14 +302,19 @@
       </section>
 
       <aside class="detail-panel" aria-label="Selected sample phase result">
-        <div class="detail-heading">
-          <p class="eyebrow" id="detailDataset">WW</p>
-          <h2 id="detailTitle">Sample 34</h2>
-        </div>
+        <div class="detail-summary-card">
+          <div class="detail-heading">
+            <div class="detail-heading-meta">
+              <p class="eyebrow" id="detailDataset">WW</p>
+              <p class="detail-heading-concentration" id="detailHeaderConcentration">100 mg mL<sup>-1</sup></p>
+            </div>
+            <h2 id="detailTitle">Sample 34</h2>
+          </div>
 
-        <div class="phase-result">
-          <span id="selectedConcentration">100 mg mL<sup>-1</sup></span>
-          <strong id="selectedPhase">-</strong>
+          <div class="phase-result">
+            <span id="selectedConcentration">100 mg mL<sup>-1</sup></span>
+            <strong id="selectedPhase">-</strong>
+          </div>
         </div>
 
         <dl class="composition-grid">
@@ -347,6 +350,10 @@
             <dt>Amorphous fraction +/-</dt>
             <dd id="detailAF">-</dd>
           </div>
+          <div class="wide-metric framework-detail-card">
+            <dt>Framework ratio</dt>
+            <dd id="detailFramework" class="framework-detail">-</dd>
+          </div>
         </dl>
 
         <div class="phase-table-wrap">
@@ -355,6 +362,7 @@
               <tr>
                 <th>Total concentration</th>
                 <th>Phase</th>
+                <th>Framework ratio</th>
                 <th>EE</th>
                 <th>LC</th>
                 <th>IR-ratio</th>
@@ -363,6 +371,7 @@
             </thead>
             <tbody id="phaseRows"></tbody>
           </table>
+          <div class="phase-table-scroll-hint" aria-hidden="true"></div>
         </div>
 
         <section class="xrd-panel" aria-label="Selected sample PXRD patterns">
@@ -400,11 +409,13 @@
 
     <script src="data/phase-data.js"></script>
     <script src="data/metrics-data.js"></script>
+    <script src="data/framework-data.js?v=20260531-framework"></script>
     <script src="data/ir-ratio-data.js"></script>
     <script src="data/amorphous-fraction-data.js"></script>
     <script src="data/xrd-data.js"></script>
     <script src="data/ir-data.js"></script>
+    <script src="ptc-logo-data.js?v=20260531-logo"></script>
     <script src="vendor/html2canvas.min.js"></script>
-    <script src="app.js?v=20260529-layout-fit"></script>
+    <script src="app.js?v=20260531-detail-heading-15"></script>
   </body>
 </html>

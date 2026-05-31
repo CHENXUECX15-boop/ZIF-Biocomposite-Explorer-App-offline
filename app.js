@@ -17,6 +17,13 @@ const mixedLegendColors = {
   right: "#20D1DC",
 };
 
+const frameworkModeKey = "FRAMEWORK";
+const frameworkComponentDefaults = [
+  { key: "crystallinity", label: "crystallinity", color: palette.mixed },
+  { key: "amorphous", label: "Am-ZIF", color: palette.amorphous },
+  { key: "protein", label: "Am-protein", color: "#EE0000" },
+];
+
 const phaseFamilies = [
   ["amorphous", "amorphous"],
   ["ZIF-C", "ZIF-C"],
@@ -134,13 +141,14 @@ const metricModes = [
   ["LC%", "LC"],
   ["IR-ratio [%]", "IR"],
   ["Amorphous fraction [%]", "AF"],
+  ["Framework ratio", frameworkModeKey],
 ];
 
 const metricPalettes = {
   EE: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
   LC: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
   IR: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
-  AF: { low: "#FFFFFF", high: "#A5A5A5", missing: "#4A4A4A" },
+  AF: { low: "#FFFFFF", high: "#A5A5A5", missing: "#4A4A4A", colorMin: 30, colorMax: 100 },
 };
 
 const valueFilterKeys = ["M", "L", "BSA", "EE", "LC", "IR", "AF"];
@@ -155,7 +163,7 @@ const valueFilterLabels = {
 };
 
 const fontScaleOptions = [0.5, 0.75, 1, 1.5, 2, 2.5, 3];
-const sampleSizeLevels = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
+const sampleSizeLevels = fontScaleOptions;
 
 const defaultValueFilters = Object.freeze({
   M: Object.freeze({ min: 0, max: 100 }),
@@ -218,8 +226,8 @@ let state = {
   concentrationFontScale: 1,
   axisTickFontScale: 1,
   axisLabelFontScale: 1,
-  sampleCircleSizeLevel: 0,
-  sampleNumberSizeLevel: 0,
+  sampleCircleSizeLevel: 1,
+  sampleNumberSizeLevel: 1,
   xrdZoom: 1,
   xrdPan: 0,
   irZoom: 1,
@@ -266,6 +274,7 @@ const els = {
   zoomOut: document.getElementById("zoomOut"),
   viewButtons: Array.from(document.querySelectorAll("[data-view]")),
   detailDataset: document.getElementById("detailDataset"),
+  detailHeaderConcentration: document.getElementById("detailHeaderConcentration"),
   detailTitle: document.getElementById("detailTitle"),
   selectedConcentration: document.getElementById("selectedConcentration"),
   selectedPhase: document.getElementById("selectedPhase"),
@@ -277,6 +286,7 @@ const els = {
   detailLC: document.getElementById("detailLC"),
   detailIR: document.getElementById("detailIR"),
   detailAF: document.getElementById("detailAF"),
+  detailFramework: document.getElementById("detailFramework"),
   phaseRows: document.getElementById("phaseRows"),
   xrdPlot: document.getElementById("xrdPlot"),
   xrdLegend: document.getElementById("xrdLegend"),
@@ -343,7 +353,8 @@ function scaledSampleSize(value) {
 }
 
 function sampleSizeLevelScale(level) {
-  return 1 + clamp(Number(level) || 0, -5, 5) * 0.1;
+  const value = Number(level);
+  return sampleSizeLevels.includes(value) ? value : 1;
 }
 
 function scaledSampleCircleSize(value) {
@@ -376,7 +387,7 @@ function readFontScale(control) {
 
 function readSampleSizeLevel(control) {
   const value = Number(control?.value);
-  return sampleSizeLevels.includes(value) ? value : 0;
+  return sampleSizeLevels.includes(value) ? value : 1;
 }
 
 function svgConcentrationText(group, value, point, className, attrs = {}) {
@@ -704,6 +715,140 @@ function formatMetricEntry(entry, includeError = true, metricKey = "") {
   return base;
 }
 
+function frameworkDefinition() {
+  return window.FRAMEWORK_DATA || null;
+}
+
+function frameworkComponentDefinitions() {
+  const components = frameworkDefinition()?.components;
+  return Array.isArray(components) && components.length ? components : frameworkComponentDefaults;
+}
+
+function frameworkEntry(sampleOrNumber, concentration, dataset = state.dataset) {
+  const sampleNumber =
+    typeof sampleOrNumber === "object" ? sampleOrNumber?.sample : sampleOrNumber;
+  return frameworkDefinition()?.datasets?.[dataset]?.[String(sampleNumber)]?.[concentration] || null;
+}
+
+function frameworkEntryIsComplete(entry) {
+  if (!entry) return false;
+  return frameworkComponentDefinitions().every((component) => Number.isFinite(Number(entry[component.key])));
+}
+
+function frameworkSegments(entry) {
+  if (!frameworkEntryIsComplete(entry)) return [];
+
+  const components = frameworkComponentDefinitions().map((component) => ({
+    ...component,
+    value: Number(entry[component.key]),
+  }));
+  const total = components.reduce((sum, component) => sum + Math.max(0, component.value), 0);
+  if (total <= 0) return [];
+
+  return components.map((component) => ({
+    ...component,
+    fraction: Math.max(0, component.value) / total,
+  }));
+}
+
+function formatFrameworkEntry(entry) {
+  if (!frameworkEntryIsComplete(entry)) return "No data";
+  return frameworkComponentDefinitions()
+    .map((component) => `${component.label} ${formatNumber(Number(entry[component.key]), 1)}%`)
+    .join(" | ");
+}
+
+function renderFrameworkDetail(container, entry) {
+  if (!container) return;
+  container.replaceChildren();
+
+  const segments = frameworkSegments(entry);
+  if (!segments.length) {
+    const empty = document.createElement("span");
+    empty.className = "framework-detail-empty";
+    empty.textContent = "No data";
+    container.append(empty);
+    return;
+  }
+
+  const bar = document.createElement("span");
+  bar.className = "framework-ratio-bar";
+  segments.forEach((segment) => {
+    const item = document.createElement("span");
+    item.className = "framework-ratio-segment";
+    item.style.flexGrow = String(Math.max(segment.value, 0));
+    item.style.background = segment.color;
+    item.title = `${segment.label} ${formatNumber(segment.value, 1)}%`;
+    bar.append(item);
+  });
+
+  const values = document.createElement("span");
+  values.className = "framework-ratio-values";
+  segments.forEach((segment) => {
+    const item = document.createElement("span");
+    item.className = "framework-ratio-item";
+
+    const swatch = document.createElement("span");
+    swatch.className = "framework-ratio-swatch";
+    swatch.style.background = segment.color;
+
+    const label = document.createElement("span");
+    label.className = "framework-ratio-label";
+    label.textContent = segment.label;
+
+    const value = document.createElement("strong");
+    value.textContent = `${formatNumber(segment.value, 1)}%`;
+
+    item.append(swatch, label, value);
+    values.append(item);
+  });
+
+  container.append(bar, values);
+}
+
+function renderFrameworkTableRatio(container, entry) {
+  if (!container) return;
+  container.replaceChildren();
+
+  const segments = frameworkSegments(entry);
+  if (!segments.length) {
+    const empty = document.createElement("span");
+    empty.className = "framework-table-empty";
+    empty.textContent = "No data";
+    container.append(empty);
+    return;
+  }
+
+  const wrap = document.createElement("span");
+  wrap.className = "framework-table-ratio";
+  wrap.title = formatFrameworkEntry(entry);
+
+  const bar = document.createElement("span");
+  bar.className = "framework-table-bar";
+  segments.forEach((segment) => {
+    const item = document.createElement("span");
+    item.className = "framework-table-segment";
+    item.style.flexGrow = String(Math.max(segment.value, 0));
+    item.style.background = segment.color;
+    bar.append(item);
+  });
+
+  const values = document.createElement("span");
+  values.className = "framework-table-values";
+  segments.forEach((segment) => {
+    const item = document.createElement("span");
+    item.textContent = `${formatNumber(segment.value, 1)}%`;
+    values.append(item);
+  });
+
+  wrap.append(bar, values);
+  container.append(wrap);
+}
+
+function frameworkNoDataLabel() {
+  return "No data";
+}
+
 function hexToRgb(hex) {
   const normalized = hex.replace("#", "");
   return {
@@ -729,12 +874,25 @@ function interpolateColor(start, end, amount) {
   });
 }
 
+function metricColorDomain(metricKey) {
+  const paletteConfig = metricPalettes[metricKey] || metricPalettes.EE;
+  const min = Number.isFinite(Number(paletteConfig.colorMin)) ? Number(paletteConfig.colorMin) : 0;
+  const max = Number.isFinite(Number(paletteConfig.colorMax)) ? Number(paletteConfig.colorMax) : 100;
+  return max > min ? { min, max } : { min: 0, max: 100 };
+}
+
 function colorForMetric(metricKey, value) {
   const paletteConfig = metricPalettes[metricKey] || metricPalettes.EE;
   if (value === null || value === undefined || value === "" || !Number.isFinite(Number(value))) {
     return paletteConfig.missing;
   }
-  return interpolateColor(paletteConfig.low, paletteConfig.high, clamp(Number(value) / 100, 0, 1));
+  const domain = metricColorDomain(metricKey);
+  const displayValue = clamp(Number(value), domain.min, domain.max);
+  return interpolateColor(
+    paletteConfig.low,
+    paletteConfig.high,
+    clamp((displayValue - domain.min) / (domain.max - domain.min), 0, 1),
+  );
 }
 
 function colorForSample(sample, concentration, phase) {
@@ -1056,9 +1214,11 @@ function updateLegendDockWidth() {
   els.phaseLegendDock.style.setProperty("--legend-padding-x", `${Math.max(8, Math.round(18 * scale))}px`);
   els.phaseLegendDock.style.setProperty("--legend-padding-y", `${Math.max(5, Math.round(10 * scale))}px`);
   const swatchSize = Math.max(10, Math.round(16 * scale));
+  const metricScaleWidth = Math.max(118, Math.round(260 * scale));
   els.phaseLegendDock.style.setProperty("--legend-swatch-size", `${swatchSize % 2 ? swatchSize + 1 : swatchSize}px`);
   els.phaseLegendDock.style.setProperty("--metric-label-width", `${Math.max(148, Math.round(228 * scale))}px`);
-  els.phaseLegendDock.style.setProperty("--metric-scale-width", `${Math.max(118, Math.round(260 * scale))}px`);
+  els.phaseLegendDock.style.setProperty("--metric-scale-width", `${metricScaleWidth}px`);
+  els.phaseLegendDock.style.setProperty("--legend-offset-x", `${Math.round(metricScaleWidth * 0.2)}px`);
 }
 
 function scheduleLegendDockUpdate() {
@@ -1092,6 +1252,7 @@ function createMetricLegendElement() {
   const metricKey = state.visualization;
   const definition = metricDefinition(metricKey);
   const paletteConfig = metricPalettes[metricKey] || metricPalettes.EE;
+  const domain = metricColorDomain(metricKey);
   const legend = document.createElement("span");
   legend.className = "metric-legend";
 
@@ -1100,14 +1261,14 @@ function createMetricLegendElement() {
   label.textContent = definition?.label || metricKey;
 
   const low = document.createElement("span");
-  low.textContent = "0%";
+  low.textContent = `${formatNumber(domain.min, 0)}%`;
 
   const scale = document.createElement("span");
   scale.className = "metric-scale";
   scale.style.background = `linear-gradient(90deg, ${paletteConfig.low}, ${paletteConfig.high})`;
 
   const high = document.createElement("span");
-  high.textContent = "100%";
+  high.textContent = `${formatNumber(domain.max, 0)}%`;
 
   const missing = document.createElement("span");
   missing.className = "metric-missing";
@@ -1121,12 +1282,49 @@ function createMetricLegendElement() {
   return legend;
 }
 
+function createFrameworkLegendElements() {
+  const label = document.createElement("strong");
+  label.className = "metric-label framework-legend-label";
+  label.textContent = "Framework ratio";
+
+  const items = frameworkComponentDefinitions().map((component) => {
+    const item = document.createElement("span");
+    item.className = "legend-item";
+
+    const swatch = document.createElement("span");
+    swatch.className = "legend-swatch";
+    swatch.style.background = component.color;
+
+    const text = document.createElement("strong");
+    text.textContent = component.label;
+
+    item.append(swatch, text);
+    return item;
+  });
+
+  const missing = document.createElement("span");
+  missing.className = "legend-item";
+
+  const swatch = document.createElement("span");
+  swatch.className = "legend-swatch";
+  swatch.style.background = palette.missing;
+
+  const text = document.createElement("strong");
+  text.textContent = frameworkNoDataLabel();
+
+  missing.append(swatch, text);
+  return [label, ...items, missing];
+}
+
 function renderLegend() {
   els.legend.replaceChildren();
 
   if (!els.phaseLegendDock) return;
+  els.phaseLegendDock.classList.toggle("is-framework-ratio", state.visualization === frameworkModeKey);
   if (state.visualization === "phase") {
     els.phaseLegendDock.replaceChildren(...createPhaseLegendElements());
+  } else if (state.visualization === frameworkModeKey) {
+    els.phaseLegendDock.replaceChildren(...createFrameworkLegendElements());
   } else {
     els.phaseLegendDock.replaceChildren(createMetricLegendElement());
   }
@@ -1183,7 +1381,7 @@ function renderAxisLabels(group, index, fit) {
     ? [
         ["M (wt.%)", makePoint(100, 0, 0), -92, 30, "end", axisColors.M],
         ["L (wt.%)", makePoint(0, 100, 0), 92, 30, "start", axisColors.L],
-        ["BSA (wt.%)", makePoint(0, 0, 100), 0, -106, "middle", axisColors.BSA],
+        ["BSA (wt.%)", makePoint(0, 0, 100), 0, -132, "middle", axisColors.BSA],
       ]
     : [
         ["M (wt.%)", makePoint(100, 0, 0), -54, 24, "end", axisColors.M],
@@ -1202,6 +1400,15 @@ function renderAxisLabels(group, index, fit) {
 
   if (state.showAxisTicks) {
     const centroid = makePoint(100 / 3, 100 / 3, 100 / 3);
+    const lViewTopLayerIndex = (() => {
+      if (!isLView) return index;
+      const topVertex = makePoint(0, 0, 100);
+      return activeConcentrations().reduce((topIndex, layer) => {
+        const currentY = screenFor(topVertex, layer.index, fit).y;
+        const topY = screenFor(topVertex, topIndex, fit).y;
+        return currentY < topY ? layer.index : topIndex;
+      }, index);
+    })();
     const normalizeVector = (vector) => {
       const length = Math.hypot(vector.x, vector.y) || 1;
       return { x: vector.x / length, y: vector.y / length };
@@ -1240,45 +1447,32 @@ function renderAxisLabels(group, index, fit) {
         y: point.y + normal.y * distance,
       };
     };
-    const lViewVertexPoint = (local, distance) => {
-      const point = screenFor(local, index, fit);
-      const center = screenFor(centroid, index, fit);
-      const normal = normalizeVector({ x: point.x - center.x, y: point.y - center.y });
-      return {
-        ...point,
-        x: point.x + normal.x * distance,
-        y: point.y + normal.y * distance,
-      };
+    const centeredTickAttrs = {
+      "text-anchor": "middle",
+      "dominant-baseline": "central",
+      "alignment-baseline": "central",
+    };
+    const lViewEdgeTickLift = isLView ? 8 * state.axisTickFontScale : 0;
+    const lViewCenterX = isLView ? screenFor(makePoint(0, 0, 100), lViewTopLayerIndex, fit).x : 0;
+    const lViewEdgeTickNudge = isLView ? 12 * state.axisTickFontScale : 0;
+    const lViewAwayFromCenterX = (point, fallbackDirection) => {
+      const direction = Math.sign(point.x - lViewCenterX) || fallbackDirection;
+      return point.x + direction * lViewEdgeTickNudge;
     };
 
     for (let value = 20; value <= 100; value += 20) {
-      const lViewTopTick = isLView && value === 100;
-      const lViewSideTickAttrs = isLView
-        ? { "text-anchor": "end", "dominant-baseline": "central", "alignment-baseline": "central" }
-        : { "text-anchor": "end" };
-      const lViewBsaTickAttrs = isLView
-        ? {
-            "text-anchor": lViewTopTick ? "middle" : "start",
-            "dominant-baseline": "central",
-            "alignment-baseline": "central",
-          }
-        : { "text-anchor": lViewTopTick ? "middle" : "start" };
-      const mIntersection = screenFor(makePoint(value, 0, 100 - value), index, fit);
+      const mLocal = makePoint(value, 0, 100 - value);
+      const mIntersection = screenFor(mLocal, index, fit);
+      const mTopIntersection = isLView ? screenFor(mLocal, lViewTopLayerIndex, fit) : mIntersection;
       const mPoint = isLView
-        ? lViewTickPoint(
-            makePoint(value, -5, 115 - value),
-            makePoint(100, 0, 0),
-            makePoint(0, 0, 100),
-            32,
-            "horizontal",
-          )
+        ? { ...mIntersection, x: lViewAwayFromCenterX(mIntersection, -1), y: mTopIntersection.y - lViewEdgeTickLift }
         : { ...mIntersection, x: mIntersection.x - 20 };
       const mTick = textAt(
         group,
         value,
         mPoint,
         "tick-label",
-        lViewSideTickAttrs,
+        isLView ? centeredTickAttrs : { "text-anchor": "end" },
       );
       mTick.style.fill = axisColors.M;
 
@@ -1302,24 +1496,18 @@ function renderAxisLabels(group, index, fit) {
       );
       lTick.style.fill = axisColors.L;
 
-      const bsaIntersection = screenFor(makePoint(0, 100 - value, value), index, fit);
+      const bsaLocal = makePoint(0, 100 - value, value);
+      const bsaIntersection = screenFor(bsaLocal, index, fit);
+      const bsaTopIntersection = isLView ? screenFor(bsaLocal, lViewTopLayerIndex, fit) : bsaIntersection;
       const bsaPoint = isLView
-        ? value === 100
-          ? lViewVertexPoint(makePoint(0, 0, 100), 82)
-          : lViewTickPoint(
-              makePoint(0, 100 - value, value),
-              makePoint(0, 0, 100),
-              makePoint(0, 0, 100),
-              32,
-              "horizontal",
-            )
-        : { ...bsaIntersection, x: bsaIntersection.x + (lViewTopTick ? 0 : 20) };
+        ? { ...bsaIntersection, x: lViewAwayFromCenterX(bsaIntersection, 1), y: bsaTopIntersection.y - lViewEdgeTickLift }
+        : { ...bsaIntersection, x: bsaIntersection.x + 20 };
       const bsaTick = textAt(
         group,
         value,
         bsaPoint,
         "tick-label",
-        lViewBsaTickAttrs,
+        isLView ? centeredTickAttrs : { "text-anchor": value === 100 ? "middle" : "start" },
       );
       bsaTick.style.fill = axisColors.BSA;
     }
@@ -1339,13 +1527,185 @@ function shouldRenderAxisForLayer(index) {
   return index === activeConcentrations()[0]?.index;
 }
 
+function createFrameworkBallDefs() {
+  const defs = createSvgElement("defs");
+  const gradient = createSvgElement("radialGradient", {
+    id: "frameworkBallGloss",
+    cx: "34%",
+    cy: "28%",
+    r: "72%",
+  });
+  gradient.append(
+    createSvgElement("stop", { offset: "0%", "stop-color": "#ffffff", "stop-opacity": "0.5" }),
+    createSvgElement("stop", { offset: "54%", "stop-color": "#ffffff", "stop-opacity": "0" }),
+    createSvgElement("stop", { offset: "100%", "stop-color": "#000000", "stop-opacity": "0.16" }),
+  );
+  defs.append(gradient);
+  return defs;
+}
+
+function circleAreaFractionAtX(normalizedX) {
+  const x = clamp(normalizedX, -1, 1);
+  return (x * Math.sqrt(Math.max(0, 1 - x * x)) + Math.asin(x) + Math.PI / 2) / Math.PI;
+}
+
+function circleXForAreaFraction(fraction) {
+  const target = clamp(fraction, 0, 1);
+  if (target <= 0) return -1;
+  if (target >= 1) return 1;
+
+  let low = -1;
+  let high = 1;
+  for (let index = 0; index < 32; index += 1) {
+    const mid = (low + high) / 2;
+    if (circleAreaFractionAtX(mid) < target) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+  return (low + high) / 2;
+}
+
+function verticalBandPath(cx, cy, radius, startFraction, endFraction) {
+  const left = cx + radius * circleXForAreaFraction(startFraction);
+  const right = cx + radius * circleXForAreaFraction(endFraction);
+  const steps = 14;
+  const top = [];
+  const bottom = [];
+
+  for (let index = 0; index <= steps; index += 1) {
+    const x = left + ((right - left) * index) / steps;
+    const dx = clamp((x - cx) / radius, -1, 1);
+    const yOffset = radius * Math.sqrt(Math.max(0, 1 - dx * dx));
+    top.push({ x, y: cy - yOffset });
+    bottom.push({ x, y: cy + yOffset });
+  }
+
+  return [
+    `M ${top[0].x.toFixed(2)} ${top[0].y.toFixed(2)}`,
+    ...top.slice(1).map((point) => `L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`),
+    ...bottom.reverse().map((point) => `L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`),
+    "Z",
+  ].join(" ");
+}
+
+function createPlainSampleDot(point, radius, fill) {
+  return createSvgElement("circle", {
+    class: "sample-dot",
+    cx: point.x,
+    cy: point.y,
+    r: radius,
+    fill,
+  });
+}
+
+function createGlossyBallNodes(point, radius, segments, groupClass = "") {
+  const visibleSegments = segments.filter((segment) => segment.fraction > 0);
+  if (!visibleSegments.length) return [];
+
+  const ball = createSvgElement("g", {
+    class: ["framework-ball", groupClass].filter(Boolean).join(" "),
+  });
+  let cursor = 0;
+  visibleSegments.forEach((segment, index) => {
+    const end = index === visibleSegments.length - 1 ? 1 : cursor + segment.fraction;
+    ball.append(
+      createSvgElement("path", {
+        class: "framework-slice",
+        d: verticalBandPath(point.x, point.y, radius, cursor, end),
+        fill: segment.color,
+        stroke: segment.color,
+        "data-component": segment.key || "",
+      }),
+    );
+    cursor = end;
+  });
+
+  ball.append(
+    createSvgElement("circle", {
+      class: "framework-ball-shade",
+      cx: point.x,
+      cy: point.y,
+      r: radius,
+    }),
+    createSvgElement("circle", {
+      class: "sample-dot framework-outline",
+      cx: point.x,
+      cy: point.y,
+      r: radius,
+    }),
+  );
+  return [ball];
+}
+
+function createFrameworkBallNodes(point, radius, entry) {
+  const segments = frameworkSegments(entry);
+  if (!segments.length) {
+    return [
+      createPlainSampleDot(point, radius, palette.missing),
+    ];
+  }
+
+  return createGlossyBallNodes(point, radius, segments, "framework-ratio-ball");
+}
+
+function createPhaseBallNodes(point, radius, phase, stats = null) {
+  if (normalizePhase(phase) === "missing") {
+    return [createPlainSampleDot(point, radius, palette.missing)];
+  }
+
+  const components = phaseColorComponents(phase, stats);
+  const segments = components.length
+    ? components.map((component) => ({
+        key: component.key,
+        color: component.color,
+        fraction: component.fraction,
+      }))
+    : [{ key: normalizePhase(phase), color: colorForPhase(phase), fraction: 1 }];
+
+  return createGlossyBallNodes(point, radius, segments, "phase-ball");
+}
+
+function createMetricBallNodes(point, radius, sample, concentration) {
+  const value = metricValue(state.visualization, sample, concentration);
+  if (!Number.isFinite(Number(value))) {
+    return [createPlainSampleDot(point, radius, colorForMetric(state.visualization, value))];
+  }
+
+  return createGlossyBallNodes(point, radius, [
+    {
+      key: state.visualization,
+      color: colorForMetric(state.visualization, value),
+      fraction: 1,
+    },
+  ], "metric-ball");
+}
+
+function createSampleBallNodes(point, radius, sample, concentration, phase, stats, framework) {
+  if (state.visualization === frameworkModeKey) {
+    return createFrameworkBallNodes(point, radius, framework);
+  }
+  if (state.visualization === "phase") {
+    return createPhaseBallNodes(point, radius, phase, stats);
+  }
+  return createMetricBallNodes(point, radius, sample, concentration);
+}
+
 function renderSamples(group, concentration, index, fit, samples) {
   samples.forEach((sample) => {
     const point = screenFor(localForComposition(sample), index, fit);
     const phase = sample.phases[concentration];
     const phaseStats = phaseStatsFor(sample, concentration);
+    const isFrameworkMode = state.visualization === frameworkModeKey;
+    const framework = isFrameworkMode ? frameworkEntry(sample, concentration) : null;
+    const displayText = isFrameworkMode
+      ? formatFrameworkEntry(framework)
+      : phaseStats
+        ? phaseColorComponents(phase, phaseStats).map(formatPhaseComponentText).join("+")
+        : displayPhasePlain(phase);
     const metricText =
-      state.visualization === "phase"
+      state.visualization === "phase" || isFrameworkMode
         ? ""
         : `, ${state.visualization} ${formatMetricEntry(metricEntry(state.visualization, sample, concentration), false, state.visualization)}`;
     if (!phaseMatches(phase) || !valueFiltersMatch(sample, concentration)) {
@@ -1364,15 +1724,8 @@ function renderSamples(group, concentration, index, fit, samples) {
       role: "button",
       "data-sample": sample.sample,
       "data-concentration": concentration,
-      "aria-label": `Sample ${sample.sample}, ${formatConcentrationPlain(concentration)}, ${
-        phaseStats ? phaseColorComponents(phase, phaseStats).map(formatPhaseComponentText).join("+") : displayPhasePlain(phase)
-      }${metricText}`,
+      "aria-label": `Sample ${sample.sample}, ${formatConcentrationPlain(concentration)}, ${displayText}${metricText}`,
     });
-    const mixedGradientId = `phaseMix${state.dataset}${index}${String(concentration).replace(/[^a-z0-9]/gi, "")}${sample.sample}`;
-    const mixedGradient =
-      state.visualization === "phase" ? createPhaseSvgGradient(mixedGradientId, phase, phaseStats) : null;
-    const dotFill = mixedGradient ? `url(#${mixedGradientId})` : colorForSample(sample, concentration, phase);
-
     const sampleNodes = [
       createSvgElement("circle", {
         class: "sample-hit",
@@ -1386,15 +1739,8 @@ function renderSamples(group, concentration, index, fit, samples) {
         cy: point.y,
         r: scaledSampleCircleSize(18),
       }),
-      createSvgElement("circle", {
-        class: "sample-dot",
-        cx: point.x,
-        cy: point.y,
-        r: scaledSampleCircleSize(12.5),
-        fill: dotFill,
-      }),
+      ...createSampleBallNodes(point, scaledSampleCircleSize(12.5), sample, concentration, phase, phaseStats, framework),
     ];
-    if (mixedGradient) sampleNodes.unshift(mixedGradient);
     if (state.showSampleNumbers) {
       const numberNode = createSvgElement("text", {
         class: "sample-number",
@@ -1408,9 +1754,7 @@ function renderSamples(group, concentration, index, fit, samples) {
     sampleGroup.append(...sampleNodes);
 
     const title = createSvgElement("title");
-    title.textContent = `Sample ${sample.sample} | ${formatConcentrationPlain(concentration)} | ${
-      phaseStats ? phaseColorComponents(phase, phaseStats).map(formatPhaseComponentText).join("+") : displayPhasePlain(phase)
-    }${metricText.replace(", ", " | ")}`;
+    title.textContent = `Sample ${sample.sample} | ${formatConcentrationPlain(concentration)} | ${displayText}${metricText.replace(", ", " | ")}`;
     sampleGroup.append(title);
 
     sampleGroup.addEventListener("keydown", (event) => {
@@ -1521,9 +1865,10 @@ function renderPlot() {
   const layers = activeConcentrations()
     .map(({ concentration, index }) => renderLayer(concentration, index, fit, samples))
     .sort((a, b) => Number(a.dataset.depth) - Number(b.dataset.depth));
+  const defs = [createFrameworkBallDefs()];
 
   els.svg.setAttribute("viewBox", `0 0 ${plot.width} ${plot.height}`);
-  els.svg.replaceChildren(...(isExporting ? [] : [renderPlotBackground()]), ...layers);
+  els.svg.replaceChildren(...(isExporting ? [] : [renderPlotBackground()]), ...defs, ...layers);
   updateLegendDockWidth();
   updateHighlights();
 }
@@ -2030,7 +2375,7 @@ function spectrumExportStyles() {
     .ir-pattern-line { fill: none; stroke: ${irPlot.color}; stroke-width: 1.9; stroke-linejoin: round; stroke-linecap: round; }
     .xrd-tick-label, .xrd-axis-title, .xrd-line-label { fill: #172124; font-size: 12px; font-weight: 720; }
     .xrd-line-label { font-size: 11px; font-weight: 780; }
-    .xrd-axis-title { font-size: 13px; font-weight: 820; }
+    .xrd-axis-title { font-size: 13px; font-weight: 400; }
     .xrd-empty { fill: #637074; font-size: 18px; font-weight: 780; }
   `;
 }
@@ -2216,14 +2561,25 @@ function updateDetail() {
   const sample = currentSample();
   if (!sample) {
     els.detailDataset.textContent = state.dataset;
+    if (els.detailHeaderConcentration) els.detailHeaderConcentration.textContent = "";
     els.detailTitle.textContent = "No sample selected";
     els.selectedConcentration.textContent = "";
     resetSelectedPhaseStyle();
     els.selectedPhase.textContent = "";
-    [els.detailM, els.detailL, els.detailBSA, els.detailRatio, els.detailEE, els.detailLC, els.detailIR, els.detailAF]
+    [
+      els.detailM,
+      els.detailL,
+      els.detailBSA,
+      els.detailRatio,
+      els.detailEE,
+      els.detailLC,
+      els.detailIR,
+      els.detailAF,
+      els.detailFramework,
+    ]
       .filter(Boolean)
       .forEach((item) => {
-        item.textContent = "";
+        item.replaceChildren();
       });
     els.phaseRows.replaceChildren();
     renderXrdPlot(null);
@@ -2237,9 +2593,11 @@ function updateDetail() {
   const lcEntry = metricEntry("LC", sample, state.concentration);
   const irEntry = metricEntry("IR", sample, state.concentration);
   const afEntry = metricEntry("AF", sample, state.concentration);
+  const currentFrameworkEntry = frameworkEntry(sample, state.concentration);
 
   els.detailDataset.textContent = state.dataset;
   els.detailTitle.textContent = `Sample ${sample.sample}`;
+  if (els.detailHeaderConcentration) renderConcentrationHtml(els.detailHeaderConcentration, state.concentration);
   renderConcentrationHtml(els.selectedConcentration, state.concentration);
   renderSelectedPhase(phase, phaseStats);
   els.detailM.textContent = formatNumber(sample.M);
@@ -2250,6 +2608,7 @@ function updateDetail() {
   els.detailLC.textContent = formatMetricEntry(lcEntry, true, "LC");
   if (els.detailIR) els.detailIR.textContent = formatMetricEntry(irEntry, true, "IR");
   if (els.detailAF) els.detailAF.textContent = formatMetricEntry(afEntry, true, "AF");
+  renderFrameworkDetail(els.detailFramework, currentFrameworkEntry);
   renderXrdPlot(sample);
   renderIrPlot(sample);
 
@@ -2274,6 +2633,9 @@ function updateDetail() {
       stylePhaseChip(chip, rowPhase, rowPhaseStats);
       phaseCell.append(chip);
 
+      const frameworkCell = document.createElement("td");
+      renderFrameworkTableRatio(frameworkCell, frameworkEntry(sample, concentration));
+
       const eeCell = document.createElement("td");
       eeCell.append(createMetricChip("EE", sample, concentration));
 
@@ -2286,7 +2648,7 @@ function updateDetail() {
       const afCell = document.createElement("td");
       afCell.append(createMetricChip("AF", sample, concentration));
 
-      row.append(concentrationCell, phaseCell, eeCell, lcCell, irCell, afCell);
+      row.append(concentrationCell, phaseCell, frameworkCell, eeCell, lcCell, irCell, afCell);
       return row;
     }),
   );
@@ -2387,7 +2749,9 @@ function renderFilterControls() {
     button.type = "button";
     button.dataset.phaseFilter = key;
 
-    const text = document.createElement("strong");
+    const isPrimaryPhase = key !== "mixed";
+    const text = document.createElement(isPrimaryPhase ? "strong" : "span");
+    text.className = `phase-filter-label${isPrimaryPhase ? " is-primary-phase" : ""}`;
     text.textContent = label;
 
     button.append(createLegendSwatch(key, "phase-dot"), text);
@@ -2636,6 +3000,10 @@ function exportStyles() {
     .tick-label { fill: #000000; font-size: ${tickLabelSize}px; font-weight: 720; }
     .sample-hit { fill: transparent; }
     .sample-dot { stroke: #ffffff; stroke-width: 2; }
+    .framework-ball { filter: none; }
+    .framework-slice { stroke-width: 0.45; }
+    .framework-ball-shade { fill: url(#frameworkBallGloss); }
+    .framework-outline { fill: none; }
     .sample-number { fill: #000000; font-size: 9.5px; font-weight: 800; text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; }
     .sample-ring { opacity: 0; }
     .sample-point.is-selected-sample .sample-dot { stroke: #1d2528; stroke-width: 2.4; }
@@ -2708,17 +3076,19 @@ function createExportText(text, x, y, className = "export-legend-text", attrs = 
   return node;
 }
 
+function createExportColorLegendSwatch(color, cx, cy, r = 6) {
+  return createSvgElement("circle", {
+    class: "export-legend-swatch",
+    cx,
+    cy,
+    r,
+    fill: color,
+  });
+}
+
 function createExportLegendSwatch(key, cx, cy, r = 6) {
   if (key !== "mixed") {
-    return [
-      createSvgElement("circle", {
-        class: "export-legend-swatch",
-        cx,
-        cy,
-        r,
-        fill: palette[key],
-      }),
-    ];
+    return [createExportColorLegendSwatch(palette[key], cx, cy, r)];
   }
 
   return [
@@ -2778,9 +3148,46 @@ function createExportLegend(layout = exportLegendLayout()) {
     return group;
   }
 
+  if (state.visualization === frameworkModeKey) {
+    const items = [
+      ...frameworkComponentDefinitions().map((component) => ({
+        label: component.label,
+        color: component.color,
+      })),
+      { label: frameworkNoDataLabel(), color: palette.missing },
+    ];
+    const itemWidths = items.map((item) => 21 + estimatedExportTextWidth(item.label));
+    const itemWidthTotal = itemWidths.reduce((sum, width) => sum + width, 0);
+    const panelWidth = Math.max(exportLegendTargetWidth(), itemWidthTotal + 28 + 18 * Math.max(0, itemWidths.length - 1));
+    const itemGap =
+      items.length > 1 ? Math.max(18, (panelWidth - 28 - itemWidthTotal) / (items.length - 1)) : 0;
+    const panelX = (plot.width - panelWidth) / 2;
+    let x = panelX + 14;
+
+    group.append(
+      createSvgElement("rect", {
+        class: "export-legend-panel",
+        x: panelX,
+        y: panelY,
+        width: panelWidth,
+        height: panelHeight,
+      }),
+    );
+
+    items.forEach((item, index) => {
+      group.append(
+        createExportColorLegendSwatch(item.color, x + 6, centerY, 6),
+        createExportText(item.label, x + 19, centerY, "export-legend-text-bold"),
+      );
+      x += itemWidths[index] + itemGap;
+    });
+    return group;
+  }
+
   const metricKey = state.visualization;
   const definition = metricDefinition(metricKey);
   const paletteConfig = metricPalettes[metricKey] || metricPalettes.EE;
+  const domain = metricColorDomain(metricKey);
   const label = definition?.label || metricKey;
   const labelWidth = estimatedExportTextWidth(label, 13);
   const panelWidth = Math.max(exportLegendTargetWidth(), labelWidth + 10 + 22 + 9 + 126 + 10 + 38 + 18 + 12 + 8 + 52 + 28);
@@ -2815,7 +3222,7 @@ function createExportLegend(layout = exportLegendLayout()) {
     createExportText(label, x, centerY, "export-legend-text-bold"),
   );
   x += labelWidth + 10;
-  group.append(createExportText("0%", x, centerY));
+  group.append(createExportText(`${formatNumber(domain.min, 0)}%`, x, centerY));
   x += 31;
   group.append(
     createSvgElement("rect", {
@@ -2829,7 +3236,7 @@ function createExportLegend(layout = exportLegendLayout()) {
     }),
   );
   x += scaleWidth + 10;
-  group.append(createExportText("100%", x, centerY));
+  group.append(createExportText(`${formatNumber(domain.max, 0)}%`, x, centerY));
   x += 56;
   group.append(
     createSvgElement("circle", {
@@ -3037,6 +3444,74 @@ async function waitForPageAssets() {
       return image.decode?.().catch(() => undefined) || Promise.resolve();
     }),
   );
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error("The image could not be converted to a data URL."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function imageUrlToDataUrl(url) {
+  const response = await fetch(url, { cache: "force-cache" });
+  if (!response.ok) {
+    throw new Error(`Image request failed with status ${response.status}.`);
+  }
+  return blobToDataUrl(await response.blob());
+}
+
+function imageElementToDataUrl(image) {
+  const width = image.naturalWidth || Number(image.getAttribute("width")) || 0;
+  const height = image.naturalHeight || Number(image.getAttribute("height")) || 0;
+  if (!width || !height) {
+    throw new Error("The loaded logo image has no readable intrinsic size.");
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("The logo data URL canvas could not be created.");
+  context.drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL("image/png");
+}
+
+function embeddedPtcLogoDataUrl() {
+  const src = window.PTC_LOGO_DATA_URL;
+  return typeof src === "string" && src.startsWith("data:image/") ? src : "";
+}
+
+async function pageCaptureLogoInfo() {
+  const logo = document.querySelector(".ptc-logo-image");
+  if (!logo) return null;
+
+  const rect = logo.getBoundingClientRect();
+  const width = Math.max(1, Math.round(rect.width || logo.width || logo.naturalWidth || 0));
+  const height = Math.max(1, Math.round(rect.height || logo.height || logo.naturalHeight || 0));
+  const fallbackSrc = logo.currentSrc || logo.src || "PTC.png?v=20260529";
+  let src = embeddedPtcLogoDataUrl();
+  let safeForCanvas = Boolean(src);
+
+  if (!src) {
+    try {
+      src = await imageUrlToDataUrl(new URL("PTC.png", document.baseURI).href);
+      safeForCanvas = src.startsWith("data:image/");
+    } catch (error) {
+      try {
+        src = imageElementToDataUrl(logo);
+        safeForCanvas = src.startsWith("data:image/");
+      } catch (canvasError) {
+        src = fallbackSrc;
+        safeForCanvas = false;
+        console.warn("PTC logo data URL conversion failed; using the original image source.", canvasError || error);
+      }
+    }
+  }
+
+  return { src: src || fallbackSrc, width, height, safeForCanvas };
 }
 
 function loadImageFromUrl(url) {
@@ -3315,6 +3790,44 @@ function drawMetricChipCanvas(ctx, metricKey, sample, concentration, x, y, width
   ctx.fillText(text, x + width / 2, y + height / 2 + 1);
 }
 
+function drawFrameworkTableRatioCanvas(ctx, entry, x, y, width) {
+  const segments = frameworkSegments(entry);
+  if (!segments.length) {
+    drawRoundRect(ctx, x, y + 8, 62, 24, 12, palette.missing, palette.missing, 1);
+    setCanvasFont(ctx, 11, 820);
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("No data", x + 9, y + 20);
+    return;
+  }
+
+  const barH = 11;
+  drawRoundRect(ctx, x, y + 8, width, barH, barH / 2, "#f5f5f5", "rgba(0, 0, 0, 0.16)", 1);
+  ctx.save();
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y + 8, width, barH, barH / 2);
+  else ctx.rect(x, y + 8, width, barH);
+  ctx.clip();
+  let cursor = x;
+  segments.forEach((segment, index) => {
+    const segmentWidth = index === segments.length - 1 ? x + width - cursor : width * segment.fraction;
+    ctx.fillStyle = segment.color;
+    ctx.fillRect(cursor, y + 8, segmentWidth, barH);
+    cursor += segmentWidth;
+  });
+  ctx.restore();
+
+  setCanvasFont(ctx, 10, 760);
+  ctx.fillStyle = pageExportTheme.muted;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  const itemW = width / 3;
+  segments.forEach((segment, index) => {
+    ctx.fillText(`${formatNumber(segment.value, 1)}%`, x + itemW * index, y + 36);
+  });
+}
+
 function svgDimensions(svg) {
   const viewBox = String(svg.getAttribute("viewBox") || "").split(/\s+/).map(Number);
   return {
@@ -3337,7 +3850,7 @@ async function svgCloneToImage(svg) {
 function drawControlsPanel(ctx, x, y, width) {
   const sectionX = x + 24;
   const innerW = width - 48;
-  const panelHeight = 1210;
+  const panelHeight = 1260;
   let cursor = y + 48;
   drawCardShadow(ctx, x, y, width, panelHeight);
 
@@ -3373,13 +3886,15 @@ function drawControlsPanel(ctx, x, y, width) {
 
   drawSectionTitle(ctx, "Visualization", sectionX, cursor);
   cursor += 18;
-  drawRoundRect(ctx, sectionX, cursor, innerW, 106, 8, "rgba(255,253,248,0.8)", pageExportTheme.line, 1);
+  const metricRows = Math.ceil(metricModes.length / 2);
+  const metricPanelHeight = 16 + metricRows * 38 + Math.max(0, metricRows - 1) * 9;
+  drawRoundRect(ctx, sectionX, cursor, innerW, metricPanelHeight, 8, "rgba(255,253,248,0.8)", pageExportTheme.line, 1);
   metricModes.forEach(([label, key], index) => {
     const bx = sectionX + 8 + (index % 2) * ((innerW - 24) / 2 + 8);
     const by = cursor + 8 + Math.floor(index / 2) * 47;
     drawButtonCanvas(ctx, label, bx, by, (innerW - 32) / 2, 38, state.visualization === key);
   });
-  cursor += 142;
+  cursor += metricPanelHeight + 36;
 
   drawSectionTitle(ctx, "Filters", sectionX, cursor);
   cursor += 23;
@@ -3418,9 +3933,9 @@ function drawControlsPanel(ctx, x, y, width) {
 }
 
 function drawTable(ctx, sample, x, y, width) {
-  const rowH = 58;
-  const headerH = 50;
-  const cols = [0, 150, 320, 420, 520];
+  const rowH = 64;
+  const headerH = 54;
+  const cols = [0, 118, 242, 402, 468, 532];
   const tableH = headerH + rowH * PHASE_DATA.concentrations.length;
 
   drawRoundRect(ctx, x, y, width, tableH, 8, "#ffffff", pageExportTheme.line, 1);
@@ -3430,9 +3945,11 @@ function drawTable(ctx, sample, x, y, width) {
   ctx.fillText("Total", x + 16, y + 21);
   ctx.fillText("concentration", x + 16, y + 36);
   ctx.fillText("Phase", x + cols[1] + 16, y + 31);
-  ctx.fillText("EE", x + cols[2] + 16, y + 31);
-  ctx.fillText("LC", x + cols[3] + 16, y + 31);
-  ctx.fillText("IR-ratio", x + cols[4] + 16, y + 31);
+  ctx.fillText("Framework", x + cols[2] + 16, y + 24);
+  ctx.fillText("ratio", x + cols[2] + 16, y + 39);
+  ctx.fillText("EE", x + cols[3] + 16, y + 31);
+  ctx.fillText("LC", x + cols[4] + 16, y + 31);
+  ctx.fillText("IR-ratio", x + cols[5] + 16, y + 31);
 
   [...PHASE_DATA.concentrations].reverse().forEach((concentration, index) => {
     const rowY = y + headerH + index * rowH;
@@ -3453,15 +3970,16 @@ function drawTable(ctx, sample, x, y, width) {
       sample.phases[concentration] || "-",
       x + cols[1] + 16,
       rowY + 15,
-      150,
+      104,
       28,
       13,
       phaseStatsFor(sample, concentration),
       { showError: false },
     );
-    drawMetricChipCanvas(ctx, "EE", sample, concentration, x + cols[2] + 16, rowY + 15, 70, 28);
-    drawMetricChipCanvas(ctx, "LC", sample, concentration, x + cols[3] + 16, rowY + 15, 70, 28);
-    drawMetricChipCanvas(ctx, "IR", sample, concentration, x + cols[4] + 16, rowY + 15, 76, 28);
+    drawFrameworkTableRatioCanvas(ctx, frameworkEntry(sample, concentration), x + cols[2] + 16, rowY + 10, 124);
+    drawMetricChipCanvas(ctx, "EE", sample, concentration, x + cols[3] + 16, rowY + 18, 58, 26);
+    drawMetricChipCanvas(ctx, "LC", sample, concentration, x + cols[4] + 16, rowY + 18, 58, 26);
+    drawMetricChipCanvas(ctx, "IR", sample, concentration, x + cols[5] + 16, rowY + 18, 64, 26);
   });
 
   return tableH;
@@ -3485,6 +4003,65 @@ function drawSpectrumCanvasPanel(ctx, image, title, status, x, y, width, imageWi
   return panelH;
 }
 
+function drawFrameworkDetailCanvas(ctx, entry, x, y, width) {
+  const height = 112;
+  const pad = 16;
+  const segments = frameworkSegments(entry);
+
+  drawRoundRect(ctx, x, y, width, height, 8, "#ffffff", pageExportTheme.line, 1);
+  setCanvasFont(ctx, 13, 820);
+  ctx.fillStyle = pageExportTheme.muted;
+  ctx.textAlign = "left";
+  ctx.fillText("Framework ratio", x + pad, y + 25);
+
+  if (!segments.length) {
+    drawRoundRect(ctx, x + pad, y + 44, 76, 28, 14, palette.missing, palette.missing, 1);
+    setCanvasFont(ctx, 13, 820);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("No data", x + pad + 12, y + 63);
+    return height;
+  }
+
+  const barX = x + pad;
+  const barY = y + 40;
+  const barW = width - pad * 2;
+  const barH = 16;
+  drawRoundRect(ctx, barX, barY, barW, barH, 8, "#f5f5f5", "rgba(0, 0, 0, 0.18)", 1);
+  ctx.save();
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(barX, barY, barW, barH, 8);
+  } else {
+    ctx.rect(barX, barY, barW, barH);
+  }
+  ctx.clip();
+  let cursor = barX;
+  segments.forEach((segment, index) => {
+    const segmentWidth = index === segments.length - 1 ? barX + barW - cursor : barW * segment.fraction;
+    ctx.fillStyle = segment.color;
+    ctx.fillRect(cursor, barY, segmentWidth, barH);
+    cursor += segmentWidth;
+  });
+  ctx.restore();
+
+  const itemW = barW / 3;
+  segments.forEach((segment, index) => {
+    const itemX = barX + itemW * index;
+    ctx.fillStyle = segment.color;
+    ctx.beginPath();
+    ctx.arc(itemX + 5, y + 77, 5, 0, Math.PI * 2);
+    ctx.fill();
+    setCanvasFont(ctx, 12, 760);
+    ctx.fillStyle = pageExportTheme.muted;
+    ctx.fillText(segment.label, itemX + 16, y + 80);
+    setCanvasFont(ctx, 15, 860);
+    ctx.fillStyle = pageExportTheme.ink;
+    ctx.fillText(`${formatNumber(segment.value, 1)}%`, itemX + 16, y + 100);
+  });
+
+  return height;
+}
+
 function drawDetailPanel(ctx, sample, x, y, width, xrdImage, irImage) {
   const phase = sample.phases[state.concentration] || "-";
   const phaseStats = phaseStatsFor(sample, state.concentration);
@@ -3492,9 +4069,10 @@ function drawDetailPanel(ctx, sample, x, y, width, xrdImage, irImage) {
   const lcEntry = metricEntry("LC", sample, state.concentration);
   const irEntry = metricEntry("IR", sample, state.concentration);
   const afEntry = metricEntry("AF", sample, state.concentration);
+  const frameworkDetailEntry = frameworkEntry(sample, state.concentration);
   let cursor = y + 46;
 
-  drawCardShadow(ctx, x, y, width, 1740);
+  drawCardShadow(ctx, x, y, width, 1860);
   setCanvasFont(ctx, 34, 880);
   ctx.fillStyle = pageExportTheme.accentDark;
   ctx.textAlign = "left";
@@ -3551,6 +4129,8 @@ function drawDetailPanel(ctx, sample, x, y, width, xrdImage, irImage) {
   });
   cursor += 94;
 
+  cursor += drawFrameworkDetailCanvas(ctx, frameworkDetailEntry, x + 24, cursor, width - 48) + 22;
+
   cursor += drawTable(ctx, sample, x + 24, cursor, width - 48) + 22;
   cursor += drawSpectrumCanvasPanel(ctx, xrdImage, "PXRD patterns", els.xrdStatus?.textContent || "", x + 24, cursor, width - 48, xrdPlot.width, xrdPlot.height) + 22;
   cursor += drawSpectrumCanvasPanel(ctx, irImage, "ATR-IR spectrum", els.irStatus?.textContent || "", x + 24, cursor, width - 48, irPlot.width, irPlot.height);
@@ -3583,6 +4163,12 @@ function drawHeader(ctx, x, y, width) {
   ctx.fillText("Download Page PNG", width - 160, y + 54);
 }
 
+function visualizationTitle() {
+  if (state.visualization === "phase") return "Phase";
+  if (state.visualization === frameworkModeKey) return "Framework ratio";
+  return metricDefinition(state.visualization)?.shortLabel || state.visualization;
+}
+
 function drawPlotPanel(ctx, ternaryImage, x, y, width, imageWidth, imageHeight) {
   const toolbarH = 76;
   const pad = 18;
@@ -3596,7 +4182,7 @@ function drawPlotPanel(ctx, ternaryImage, x, y, width, imageWidth, imageHeight) 
   setCanvasFont(ctx, 15, 800);
   ctx.fillStyle = pageExportTheme.muted;
   ctx.textAlign = "left";
-  ctx.fillText(state.visualization === "phase" ? "Phase ternary diagram" : `${state.visualization} ternary diagram`, x + 22, y + 44);
+  ctx.fillText(`${visualizationTitle()} ternary diagram`, x + 22, y + 44);
   drawButtonCanvas(ctx, "Reset View", x + width - 260, y + 22, 112, 40, false);
   drawButtonCanvas(ctx, "Download PNG", x + width - 138, y + 22, 116, 40, true);
   drawGridBackground(ctx, x + 1, y + toolbarH, width - 2, imageH + pad - 1, 38);
@@ -3655,6 +4241,7 @@ function ensurePageCaptureStyle() {
   style.textContent = `
     html.is-page-capturing,
     body.is-page-capturing {
+      background: #ffffff !important;
       scrollbar-width: none !important;
     }
 
@@ -3669,6 +4256,7 @@ function ensurePageCaptureStyle() {
       display: grid !important;
       grid-template-columns: minmax(0, 1fr) max-content !important;
       align-items: center !important;
+      background: #ffffff !important;
       gap: 18px !important;
     }
 
@@ -3689,21 +4277,23 @@ function ensurePageCaptureStyle() {
     body.is-page-capturing .ptc-logo-link {
       display: inline-flex !important;
       flex-wrap: nowrap !important;
+      background: #ffffff !important;
       max-width: none !important;
       min-width: 0 !important;
       justify-self: start !important;
     }
 
     body.is-page-capturing .ptc-logo-lockup {
+      background: #ffffff !important;
       flex: 0 0 auto !important;
     }
 
     body.is-page-capturing .ptc-logo-image {
       display: block !important;
-      width: auto !important;
-      height: 70px !important;
-      max-width: 360px !important;
-      object-fit: contain !important;
+      max-width: none !important;
+      object-fit: unset !important;
+      object-position: initial !important;
+      background: #ffffff !important;
     }
 
     body.is-page-capturing .ptc-mark {
@@ -3744,6 +4334,36 @@ function ensurePageCaptureStyle() {
       top: auto !important;
     }
 
+    body.is-page-capturing .phase-table-wrap {
+      overflow-x: hidden !important;
+      overflow-y: hidden !important;
+      background: #ffffff !important;
+    }
+
+    body.is-page-capturing .phase-table-scroll-hint {
+      position: sticky !important;
+      left: 0 !important;
+      z-index: 1 !important;
+      display: block !important;
+      width: calc(100% - 22px) !important;
+      min-width: 140px !important;
+      height: 9px !important;
+      margin: 3px 11px 8px !important;
+      border-radius: 999px !important;
+      background: #d7d7d7 !important;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+      pointer-events: none !important;
+    }
+
+    body.is-page-capturing .phase-table-scroll-hint::before {
+      content: "" !important;
+      display: block !important;
+      width: 58% !important;
+      height: 100% !important;
+      border-radius: inherit !important;
+      background: #858585 !important;
+    }
+
     body.is-page-capturing .visual-surface {
       grid-template-rows: auto minmax(0, 1fr) !important;
     }
@@ -3762,10 +4382,10 @@ function ensurePageCaptureStyle() {
       min-width: 168px !important;
       max-width: none !important;
       height: 44px !important;
-      padding: 0 12px !important;
+      padding: 6px 12px !important;
       margin-left: 0 !important;
-      font-size: 11px !important;
-      line-height: 1.05 !important;
+      font-size: 14px !important;
+      line-height: 20px !important;
       white-space: nowrap !important;
       pointer-events: none !important;
     }
@@ -3912,10 +4532,10 @@ async function stitchCurrentPageFromCapture(video) {
 
 function pageExportScale() {
   const deviceScale = Number(window.devicePixelRatio) || 1;
-  return Math.min(3, Math.max(2, deviceScale));
+  return Math.min(2, Math.max(1, deviceScale));
 }
 
-async function renderCurrentPageWithHtml2Canvas() {
+async function renderCurrentPageWithHtml2Canvas(logoInfo = null) {
   const renderer = window.html2canvas;
   if (typeof renderer !== "function") {
     throw new Error("The offline page renderer is missing. Please refresh the page and make sure vendor/html2canvas.min.js is present.");
@@ -3929,12 +4549,13 @@ async function renderCurrentPageWithHtml2Canvas() {
 
   const { width, height } = pageScrollSize();
   const options = {
-    backgroundColor: null,
+    backgroundColor: "#ffffff",
     scale: pageExportScale(),
     useCORS: true,
     allowTaint: false,
     logging: false,
     imageTimeout: 15000,
+    foreignObjectRendering: false,
     scrollX: 0,
     scrollY: 0,
     x: 0,
@@ -3946,10 +4567,41 @@ async function renderCurrentPageWithHtml2Canvas() {
     onclone: (clonedDocument) => {
       clonedDocument.documentElement.classList.add("is-page-capturing");
       clonedDocument.body.classList.add("is-page-capturing");
+      clonedDocument.documentElement.style.background = "#ffffff";
+      clonedDocument.body.style.background = "#ffffff";
+
+      ["controls-panel", "detail-panel"].forEach((className) => {
+        clonedDocument.querySelectorAll(`.${className}`).forEach((panel) => {
+          panel.style.position = "static";
+          panel.style.top = "auto";
+        });
+      });
+
+      clonedDocument.querySelectorAll(".app-header, .ptc-logo-link, .ptc-logo-lockup").forEach((node) => {
+        node.style.background = "#ffffff";
+      });
+
       const clonedLogo = clonedDocument.querySelector(".ptc-logo-image");
       if (clonedLogo) {
         clonedLogo.removeAttribute("srcset");
-        clonedLogo.setAttribute("src", "PTC.png?v=20260529");
+        clonedLogo.removeAttribute("sizes");
+        clonedLogo.setAttribute("src", logoInfo?.src || clonedLogo.getAttribute("src") || "PTC.png?v=20260529");
+        if (logoInfo?.safeForCanvas === false) {
+          clonedLogo.setAttribute("crossorigin", "anonymous");
+        }
+        if (logoInfo?.width && logoInfo?.height) {
+          clonedLogo.setAttribute("width", String(logoInfo.width));
+          clonedLogo.setAttribute("height", String(logoInfo.height));
+          clonedLogo.style.width = `${logoInfo.width}px`;
+          clonedLogo.style.height = `${logoInfo.height}px`;
+        }
+        clonedLogo.style.display = "block";
+        clonedLogo.style.maxWidth = "none";
+        clonedLogo.style.minWidth = "0";
+        clonedLogo.style.objectFit = "unset";
+        clonedLogo.style.objectPosition = "initial";
+        clonedLogo.style.background = "#ffffff";
+        clonedLogo.style.flex = "0 0 auto";
       }
       const clonedButton = clonedDocument.getElementById("downloadPagePng");
       if (clonedButton) {
@@ -3959,12 +4611,7 @@ async function renderCurrentPageWithHtml2Canvas() {
     },
   };
 
-  try {
-    return await renderer(document.body, { ...options, foreignObjectRendering: true });
-  } catch (error) {
-    console.warn("Foreign-object page export failed; retrying with canvas renderer.", error);
-    return renderer(document.body, options);
-  }
+  return renderer(document.body, options);
 }
 
 async function downloadPagePng() {
@@ -3979,7 +4626,8 @@ async function downloadPagePng() {
 
   try {
     await waitForPageAssets();
-    const canvas = await renderCurrentPageWithHtml2Canvas();
+    const logoInfo = await pageCaptureLogoInfo();
+    const canvas = await renderCurrentPageWithHtml2Canvas(logoInfo);
     if (button) {
       button.disabled = true;
       button.textContent = "Saving PNG...";

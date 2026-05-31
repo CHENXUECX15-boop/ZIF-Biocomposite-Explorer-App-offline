@@ -148,7 +148,7 @@ const metricPalettes = {
   EE: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
   LC: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
   IR: { low: "#FFFFFF", high: "#EE0000", missing: "#4A4A4A" },
-  AF: { low: "#FFFFFF", high: "#A5A5A5", missing: "#4A4A4A", colorMin: 30, colorMax: 100 },
+  AF: { low: "#FFFFFF", high: "#757575", missing: "#4A4A4A", colorMin: 30, colorMax: 100 },
 };
 
 const valueFilterKeys = ["M", "L", "BSA", "EE", "LC", "IR", "AF"];
@@ -185,6 +185,7 @@ const plot = {
   defaultLayerGap: 200,
   layerGapStep: 1,
   margin: 76,
+  gridStep: 38,
   exportScale: 4,
 };
 
@@ -458,6 +459,8 @@ function appendPhaseComponentText(container, component, options = {}) {
     span.append(document.createTextNode(`${formatPhasePercent(component.percent)}%`));
     const error = document.createElement("span");
     error.className = "phase-error";
+    error.style.color = component.color;
+    error.style.webkitTextFillColor = component.color;
     error.textContent = ` +/- ${formatPhasePercent(component.error)}%`;
     span.append(error, document.createTextNode(component.label));
   } else {
@@ -1669,7 +1672,7 @@ function createPhaseBallNodes(point, radius, phase, stats = null) {
 
 function createMetricBallNodes(point, radius, sample, concentration) {
   const value = metricValue(state.visualization, sample, concentration);
-  if (!Number.isFinite(Number(value))) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) {
     return [createPlainSampleDot(point, radius, colorForMetric(state.visualization, value))];
   }
 
@@ -2706,11 +2709,12 @@ function setZoom(nextZoom) {
 }
 
 function setView(view) {
+  const shortcutPanStep = plot.gridStep * 2;
   const views = {
-    z: { rotationX: 0, rotationY: 0, rotationZ: 0 },
-    l: { rotationX: 0.07, rotationY: 0, rotationZ: 0 },
-    y: { rotationX: 1.25, rotationY: 0, rotationZ: 0 },
-    x: { rotationX: 1.18, rotationY: -1.25, rotationZ: 0 },
+    z: { rotationX: 0, rotationY: 0, rotationZ: 0, panX: -shortcutPanStep, panY: 0 },
+    l: { rotationX: 0.07, rotationY: 0, rotationZ: 0, panX: -shortcutPanStep, panY: 0 },
+    y: { rotationX: 1.25, rotationY: 0, rotationZ: 0, panX: -shortcutPanStep, panY: 0 },
+    x: { rotationX: 1.18, rotationY: -1.25, rotationZ: 0, panX: shortcutPanStep, panY: 0 },
   };
 
   state = {
@@ -3044,6 +3048,157 @@ function exportContentBottom(svgNode = els.svg) {
   return bottom || plot.height;
 }
 
+function mergeExportBounds(bounds, next) {
+  if (
+    !next ||
+    !Number.isFinite(next.x) ||
+    !Number.isFinite(next.y) ||
+    !Number.isFinite(next.width) ||
+    !Number.isFinite(next.height)
+  ) {
+    return bounds;
+  }
+
+  return {
+    minX: Math.min(bounds.minX, next.x),
+    minY: Math.min(bounds.minY, next.y),
+    maxX: Math.max(bounds.maxX, next.x + next.width),
+    maxY: Math.max(bounds.maxY, next.y + next.height),
+  };
+}
+
+function elementExportBox(node) {
+  if (!node || typeof node.getBBox !== "function") return null;
+  try {
+    const box = node.getBBox();
+    if (!Number.isFinite(box.x) || !Number.isFinite(box.y)) return null;
+    return box;
+  } catch (error) {
+    return null;
+  }
+}
+
+function pointsExportBox(node) {
+  const points = String(node.getAttribute("points") || "")
+    .trim()
+    .split(/\s+/)
+    .map((pair) => pair.split(",").map(Number))
+    .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+  if (!points.length) return null;
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(...xs) - minX,
+    height: Math.max(...ys) - minY,
+  };
+}
+
+function lineExportBox(node) {
+  const x1 = Number(node.getAttribute("x1"));
+  const y1 = Number(node.getAttribute("y1"));
+  const x2 = Number(node.getAttribute("x2"));
+  const y2 = Number(node.getAttribute("y2"));
+  if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
+  const minX = Math.min(x1, x2);
+  const minY = Math.min(y1, y2);
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(x1, x2) - minX,
+    height: Math.max(y1, y2) - minY,
+  };
+}
+
+function circleExportBox(node) {
+  const cx = Number(node.getAttribute("cx"));
+  const cy = Number(node.getAttribute("cy"));
+  const r = Number(node.getAttribute("r"));
+  if (![cx, cy, r].every(Number.isFinite)) return null;
+  return {
+    x: cx - r,
+    y: cy - r,
+    width: r * 2,
+    height: r * 2,
+  };
+}
+
+function textExportBox(node) {
+  const x = Number(node.getAttribute("x"));
+  const y = Number(node.getAttribute("y"));
+  if (![x, y].every(Number.isFinite)) return null;
+
+  const className = String(node.getAttribute("class") || "").split(/\s+/)[0] || "";
+  const styleSize = Number(String(node.getAttribute("style") || "").match(/font-size:\s*([\d.]+)/)?.[1]);
+  const size = Number.isFinite(styleSize) ? styleSize : scaledSize(textSizeForClass(className));
+  const width = Math.max(10, estimatedExportTextWidth(node.textContent || "", size));
+  const height = Math.max(10, size * 1.25);
+  const anchor = node.getAttribute("text-anchor");
+  const left = anchor === "end" ? x - width : anchor === "middle" ? x - width / 2 : x;
+
+  return {
+    x: left,
+    y: y - height,
+    width,
+    height: height * 1.35,
+  };
+}
+
+function manualElementExportBox(node) {
+  const tagName = String(node?.tagName || "").toLowerCase();
+  if (tagName === "polygon" || tagName === "polyline") return pointsExportBox(node);
+  if (tagName === "line") return lineExportBox(node);
+  if (tagName === "circle") return circleExportBox(node);
+  if (tagName === "text") return textExportBox(node);
+  return null;
+}
+
+function exportContentBounds(svgNode = els.svg) {
+  const initialBounds = {
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity,
+  };
+  const selectors = [
+    ".ternary-layer",
+    ".sample-point",
+    ".framework-ball",
+    ".sample-dot",
+    ".sample-ring",
+    ".layer-plane",
+    ".layer-shadow",
+    ".layer-grid",
+    ".layer-edge",
+    ".layer-label",
+    ".axis-label",
+    ".tick-label",
+  ].join(", ");
+  const bounds = Array.from(svgNode?.querySelectorAll(selectors) || []).reduce(
+    (merged, node) => mergeExportBounds(mergeExportBounds(merged, manualElementExportBox(node)), elementExportBox(node)),
+    initialBounds,
+  );
+
+  if (
+    Number.isFinite(bounds.minX) &&
+    Number.isFinite(bounds.minY) &&
+    Number.isFinite(bounds.maxX) &&
+    Number.isFinite(bounds.maxY)
+  ) {
+    return bounds;
+  }
+
+  return {
+    minX: 0,
+    minY: 0,
+    maxX: plot.width,
+    maxY: exportContentBottom(svgNode),
+  };
+}
+
 function exportLegendLayout(svgNode = els.svg) {
   const panelHeight = 44;
   const previousPanelY = plot.height + 22;
@@ -3054,6 +3209,21 @@ function exportLegendLayout(svgNode = els.svg) {
     panelY,
     centerY: panelY + panelHeight / 2,
     height: panelY + panelHeight + 28,
+  };
+}
+
+function exportViewport(layout, svgNode = els.svg) {
+  const bounds = exportContentBounds(svgNode);
+  const margin = 72;
+  const x = Math.floor(Math.min(0, bounds.minX - margin));
+  const y = Math.floor(Math.min(0, bounds.minY - margin));
+  const right = Math.ceil(Math.max(plot.width, bounds.maxX + margin));
+  const bottom = Math.ceil(Math.max(layout.height, bounds.maxY + margin));
+  return {
+    x,
+    y,
+    width: right - x,
+    height: bottom - y,
   };
 }
 
@@ -3264,8 +3434,8 @@ function cloneSvgForFullExport() {
   state = {
     ...state,
     zoom: 1,
-    panX: 0,
-    panY: 0,
+    panX: previousView.panX,
+    panY: previousView.panY,
     layerGap: previousView.layerGap,
   };
   renderPlot();
@@ -3282,18 +3452,18 @@ function cloneSvgForFullExport() {
 
 function cloneSvgForExport() {
   const layout = exportLegendLayout(els.svg);
-  const height = layout.height;
+  const viewport = exportViewport(layout, els.svg);
   const clone = els.svg.cloneNode(true);
   clone.setAttribute("xmlns", SVG_NS);
-  clone.setAttribute("width", plot.width);
-  clone.setAttribute("height", height);
-  clone.setAttribute("viewBox", `0 0 ${plot.width} ${height}`);
+  clone.setAttribute("width", viewport.width);
+  clone.setAttribute("height", viewport.height);
+  clone.setAttribute("viewBox", `${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`);
 
   const background = createSvgElement("rect", {
-    x: 0,
-    y: 0,
-    width: plot.width,
-    height,
+    x: viewport.x,
+    y: viewport.y,
+    width: viewport.width,
+    height: viewport.height,
     fill: "#ffffff",
   });
   const defs = createSvgElement("defs");
@@ -3408,11 +3578,12 @@ function downloadPng() {
   const url = URL.createObjectURL(svgBlob);
   const image = new Image();
   const fileSafeConcentration = formatConcentrationFile(state.concentration);
+  const width = Number(clone.getAttribute("width")) || plot.width;
   const height = Number(clone.getAttribute("height")) || plot.height;
 
   image.onload = () => {
     const canvas = document.createElement("canvas");
-    canvas.width = plot.width * plot.exportScale;
+    canvas.width = width * plot.exportScale;
     canvas.height = height * plot.exportScale;
     const context = canvas.getContext("2d");
     context.fillStyle = "#ffffff";
@@ -3549,7 +3720,7 @@ const pageExportTheme = {
 };
 
 function setCanvasFont(ctx, size, weight = 700) {
-  ctx.font = `${weight} ${size}px Inter, Segoe UI, Microsoft YaHei, Arial, sans-serif`;
+  ctx.font = `${weight} ${size}px Arial, sans-serif`;
 }
 
 function drawRoundRect(ctx, x, y, width, height, radius, fill, stroke = "", lineWidth = 1) {
@@ -4535,6 +4706,20 @@ function pageExportScale() {
   return Math.min(2, Math.max(1, deviceScale));
 }
 
+function syncCloneTextColors(clonedDocument, selector) {
+  const sourceNodes = [...document.querySelectorAll(selector)];
+  const clonedNodes = [...clonedDocument.querySelectorAll(selector)];
+  sourceNodes.forEach((sourceNode, index) => {
+    const clonedNode = clonedNodes[index];
+    if (!clonedNode) return;
+    const sourceStyle = getComputedStyle(sourceNode);
+    const color = sourceStyle.color;
+    if (!color) return;
+    clonedNode.style.color = color;
+    clonedNode.style.webkitTextFillColor = color;
+  });
+}
+
 async function renderCurrentPageWithHtml2Canvas(logoInfo = null) {
   const renderer = window.html2canvas;
   if (typeof renderer !== "function") {
@@ -4569,6 +4754,11 @@ async function renderCurrentPageWithHtml2Canvas(logoInfo = null) {
       clonedDocument.body.classList.add("is-page-capturing");
       clonedDocument.documentElement.style.background = "#ffffff";
       clonedDocument.body.style.background = "#ffffff";
+
+      syncCloneTextColors(
+        clonedDocument,
+        "#selectedPhase, #selectedPhase .phase-component, #selectedPhase .phase-error, .phase-chip, .phase-chip .phase-component",
+      );
 
       ["controls-panel", "detail-panel"].forEach((className) => {
         clonedDocument.querySelectorAll(`.${className}`).forEach((panel) => {

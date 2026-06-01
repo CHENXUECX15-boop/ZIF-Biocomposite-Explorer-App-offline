@@ -1331,21 +1331,28 @@ sup {
 
 .framework-ratio-values {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
+  grid-template-columns: minmax(130px, 1.35fr) minmax(86px, 0.9fr) minmax(108px, 1fr);
+  column-gap: 6px;
+  row-gap: 4px;
+  align-items: start;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.15;
 }
 
 .framework-ratio-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
-  color: var(--muted);
-  line-height: 1.15;
+  color: inherit;
+  line-height: inherit;
   white-space: nowrap;
 }
 
 .framework-ratio-swatch {
+  flex: 0 0 10px;
   width: 10px;
   height: 10px;
   border: 1px solid rgba(0, 0, 0, 0.16);
@@ -1354,16 +1361,16 @@ sup {
 
 .framework-ratio-label {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
 .framework-ratio-item strong {
   flex: 0 0 auto;
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 860;
+  color: #000000;
+  font-size: 13px;
+  font-weight: inherit;
 }
 
 .framework-detail-empty {
@@ -2044,10 +2051,21 @@ h2 {
   line-height: 1.25;
 }
 
-.composition-grid dd.framework-detail,
-.framework-ratio-label {
+.composition-grid dd.framework-detail {
   font-size: 12px;
   line-height: 1.25;
+}
+
+.framework-ratio-values,
+.framework-ratio-label {
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.framework-ratio-item strong {
+  color: #000000;
+  font-size: 13px;
+  line-height: 1.15;
 }
 
 .phase-table th,

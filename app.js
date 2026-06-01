@@ -19,7 +19,7 @@ const mixedLegendColors = {
 
 const frameworkModeKey = "FRAMEWORK";
 const frameworkComponentDefaults = [
-  { key: "crystallinity", label: "crystallinity", color: palette.mixed },
+  { key: "crystallinity", label: "crystalline ZIF", color: palette.mixed },
   { key: "amorphous", label: "Am-ZIF", color: palette.amorphous },
   { key: "protein", label: "Am-protein", color: "#EE0000" },
 ];
@@ -141,7 +141,7 @@ const metricModes = [
   ["LC%", "LC"],
   ["IR-ratio [%]", "IR"],
   ["Amorphous fraction [%]", "AF"],
-  ["Framework ratio", frameworkModeKey],
+  ["Framework to amorphous ratio", frameworkModeKey],
 ];
 
 const metricPalettes = {
@@ -202,6 +202,8 @@ const irPlot = {
   margin: { top: 18, right: 18, bottom: 42, left: 54 },
   color: "#EE0000",
 };
+const irRawYMax = 100;
+const irDisplayYMax = 1;
 
 const defaultView = {
   rotationX: 1.25,
@@ -1288,7 +1290,7 @@ function createMetricLegendElement() {
 function createFrameworkLegendElements() {
   const label = document.createElement("strong");
   label.className = "metric-label framework-legend-label";
-  label.textContent = "Framework ratio";
+  label.textContent = "Framework to amorphous ratio";
 
   const items = frameworkComponentDefinitions().map((component) => {
     const item = document.createElement("span");
@@ -2170,11 +2172,16 @@ function irPathFor(values, geometry, xMeta, range) {
       const wavenumber = start + step * index;
       if (wavenumber < range.min || wavenumber > range.max) return null;
       const x = irXFor(wavenumber, geometry, range);
-      const y = geometry.top + geometry.height - (clamp(Number(value), 0, 100) / 100) * geometry.height;
+      const y = geometry.top + geometry.height - (clamp(Number(value), 0, irRawYMax) / irRawYMax) * geometry.height;
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     })
     .filter(Boolean)
     .join(" ");
+}
+
+function formatIrYAxisTick(rawValue) {
+  const displayValue = (rawValue / irRawYMax) * irDisplayYMax;
+  return Number.isInteger(displayValue) ? String(displayValue) : String(Number(displayValue.toFixed(1)));
 }
 
 function renderIrPlot(sample) {
@@ -2203,7 +2210,7 @@ function renderIrPlot(sample) {
   ];
 
   [0, 50, 100].forEach((tick) => {
-    const y = geometry.top + geometry.height - (tick / 100) * geometry.height;
+    const y = geometry.top + geometry.height - (tick / irRawYMax) * geometry.height;
     nodes.push(
       createSvgElement("line", {
         class: "xrd-grid-line",
@@ -2212,7 +2219,7 @@ function renderIrPlot(sample) {
         x2: geometry.left + geometry.width,
         y2: y,
       }),
-      createXrdText(tick, geometry.left - 10, y + 4, "xrd-tick-label", {
+      createXrdText(formatIrYAxisTick(tick), geometry.left - 10, y + 4, "xrd-tick-label", {
         "text-anchor": "end",
       }),
     );
@@ -4116,8 +4123,9 @@ function drawTable(ctx, sample, x, y, width) {
   ctx.fillText("Total", x + 16, y + 21);
   ctx.fillText("concentration", x + 16, y + 36);
   ctx.fillText("Phase", x + cols[1] + 16, y + 31);
-  ctx.fillText("Framework", x + cols[2] + 16, y + 24);
-  ctx.fillText("ratio", x + cols[2] + 16, y + 39);
+  ctx.fillText("Framework to", x + cols[2] + 16, y + 18);
+  ctx.fillText("amorphous", x + cols[2] + 16, y + 32);
+  ctx.fillText("ratio", x + cols[2] + 16, y + 46);
   ctx.fillText("EE", x + cols[3] + 16, y + 31);
   ctx.fillText("LC", x + cols[4] + 16, y + 31);
   ctx.fillText("IR-ratio", x + cols[5] + 16, y + 31);
@@ -4183,7 +4191,7 @@ function drawFrameworkDetailCanvas(ctx, entry, x, y, width) {
   setCanvasFont(ctx, 13, 820);
   ctx.fillStyle = pageExportTheme.muted;
   ctx.textAlign = "left";
-  ctx.fillText("Framework ratio", x + pad, y + 25);
+  ctx.fillText("Framework to amorphous ratio", x + pad, y + 25);
 
   if (!segments.length) {
     drawRoundRect(ctx, x + pad, y + 44, 76, 28, 14, palette.missing, palette.missing, 1);
@@ -4336,7 +4344,7 @@ function drawHeader(ctx, x, y, width) {
 
 function visualizationTitle() {
   if (state.visualization === "phase") return "Phase";
-  if (state.visualization === frameworkModeKey) return "Framework ratio";
+  if (state.visualization === frameworkModeKey) return "Framework to amorphous ratio";
   return metricDefinition(state.visualization)?.shortLabel || state.visualization;
 }
 

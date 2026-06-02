@@ -600,7 +600,7 @@ h2 {
 }
 
 .toolbar-left {
-  --toolbar-control-grid-width: min(100%, 760px);
+  --toolbar-control-grid-width: min(100%, 610px);
   display: grid;
   flex: 1 1 auto;
   align-items: start;
@@ -612,14 +612,15 @@ h2 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
-  gap: 6px;
+  gap: 4px;
   width: var(--toolbar-control-grid-width);
 }
 
 .plot-toolbar .display-toggle {
-  justify-content: center;
+  justify-content: flex-start;
   min-height: 30px;
-  padding: 5px 8px;
+  gap: 4px;
+  padding: 4px 5px;
   white-space: nowrap;
 }
 
@@ -627,7 +628,7 @@ h2 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: stretch;
-  gap: 6px;
+  gap: 4px;
   width: var(--toolbar-control-grid-width);
 }
 
@@ -1995,14 +1996,19 @@ h2 {
   width: 100%;
   box-sizing: border-box;
   min-height: 30px;
-  padding: 5px 8px;
+  padding: 4px 5px;
   font-size: 11px;
   font-weight: 400;
   line-height: 16px;
 }
 
 .plot-toolbar .font-size-control {
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.plot-toolbar .font-size-control > span {
+  flex: 0 0 auto;
 }
 
 .plot-toolbar .display-toggle input {
@@ -2011,10 +2017,10 @@ h2 {
 }
 
 .plot-toolbar .font-size-control select {
-  width: 58px;
-  min-width: 58px;
-  height: 30px;
-  padding: 3px 18px 3px 6px;
+  width: 62px;
+  min-width: 62px;
+  height: 28px;
+  padding: 2px 18px 2px 6px;
   font-size: 11px;
   font-weight: 400;
   line-height: 16px;

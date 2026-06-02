@@ -229,6 +229,7 @@ let state = {
   concentrationFontScale: 1,
   axisTickFontScale: 1,
   axisLabelFontScale: 1,
+  legendFontScale: 1,
   sampleCircleSizeLevel: 1,
   sampleNumberSizeLevel: 1,
   xrdZoom: 1,
@@ -262,6 +263,7 @@ const els = {
   concentrationFontScale: document.getElementById("concentrationFontScale"),
   axisTickFontScale: document.getElementById("axisTickFontScale"),
   axisLabelFontScale: document.getElementById("axisLabelFontScale"),
+  legendFontScale: document.getElementById("legendFontScale"),
   sampleCircleSizeLevel: document.getElementById("sampleCircleSizeLevel"),
   sampleNumberSizeLevel: document.getElementById("sampleNumberSizeLevel"),
   layerGapControl: document.getElementById("layerGapControl"),
@@ -385,6 +387,11 @@ function textSizeForClass(className) {
 
 function readFontScale(control) {
   const value = Number(control?.value);
+  return fontScaleOptions.includes(value) ? value : 1;
+}
+
+function legendFontScaleValue() {
+  const value = Number(state.legendFontScale);
   return fontScaleOptions.includes(value) ? value : 1;
 }
 
@@ -1184,33 +1191,52 @@ function createLegendSwatch(key, className) {
   return swatch;
 }
 
-function triangleScreenWidth(svgNode = els.svg) {
-  const widths = Array.from(svgNode?.querySelectorAll(".layer-plane") || [])
-    .map((polygon) => {
-      const xs = String(polygon.getAttribute("points") || "")
+function triangleScreenBounds(svgNode = els.svg) {
+  const xs = Array.from(svgNode?.querySelectorAll(".layer-plane") || [])
+    .flatMap((polygon) =>
+      String(polygon.getAttribute("points") || "")
         .trim()
         .split(/\s+/)
         .map((pair) => Number(pair.split(",")[0]))
-        .filter(Number.isFinite);
-      if (xs.length < 2) return 0;
-      return Math.max(...xs) - Math.min(...xs);
-    })
-    .filter((width) => width > 0);
-  return widths.length ? Math.max(...widths) : plot.triangleWidth;
+        .filter(Number.isFinite),
+    );
+  if (xs.length < 2) {
+    const centerX = plot.width / 2;
+    return {
+      minX: centerX - plot.triangleWidth / 2,
+      maxX: centerX + plot.triangleWidth / 2,
+      width: plot.triangleWidth,
+      centerX,
+    };
+  }
+
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  return {
+    minX,
+    maxX,
+    width: maxX - minX,
+    centerX: (minX + maxX) / 2,
+  };
+}
+
+function triangleScreenWidth(svgNode = els.svg) {
+  return triangleScreenBounds(svgNode).width;
 }
 
 function updateLegendDockWidth() {
   if (!els.phaseLegendDock) return;
   const frame = els.plotFrame?.getBoundingClientRect();
-  const gizmo = els.plotFrame?.querySelector(".view-gizmo")?.getBoundingClientRect();
   const frameWidth = frame?.width || plot.width;
-  const sideReserve = (gizmo?.width || 78) + 34;
+  const sideReserve = 34;
   const maxWidth = Math.max(260, frameWidth - sideReserve * 2);
   const targetRatio = state.visualization === "phase" ? 0.74 : 0.72;
-  const preferredWidth = frameWidth * targetRatio;
+  const legendControlScale = legendFontScaleValue();
+  const widthScale = legendControlScale > 1 ? clamp(1 + (legendControlScale - 1) * 0.16, 1, 1.32) : 1;
+  const preferredWidth = frameWidth * targetRatio * widthScale;
   const minWidth = Math.min(maxWidth, state.visualization === "phase" ? 330 : 390);
   const legendWidth = Math.max(minWidth, Math.min(maxWidth, preferredWidth));
-  const scale = clamp(legendWidth / 720, 0.62, 1);
+  const scale = clamp(legendWidth / 720, 0.62, 1) * legendControlScale;
 
   els.phaseLegendDock.style.setProperty("--legend-width", `${Math.round(legendWidth)}px`);
   els.phaseLegendDock.style.setProperty("--legend-font-size", `${(16 * scale).toFixed(1)}px`);
@@ -1334,6 +1360,7 @@ function renderLegend() {
     els.phaseLegendDock.replaceChildren(createMetricLegendElement());
   }
   els.phaseLegendDock.classList.remove("is-hidden");
+  scheduleLegendDockUpdate();
 }
 
 function renderGrid(group, index, fit) {
@@ -2810,6 +2837,9 @@ function updateControlStates() {
   if (els.axisLabelFontScale) {
     els.axisLabelFontScale.value = String(state.axisLabelFontScale);
   }
+  if (els.legendFontScale) {
+    els.legendFontScale.value = String(state.legendFontScale);
+  }
   if (els.sampleCircleSizeLevel) {
     els.sampleCircleSizeLevel.value = String(state.sampleCircleSizeLevel);
   }
@@ -2999,6 +3029,7 @@ function exportStyles() {
   const layerLabelSize = 18 * state.concentrationFontScale;
   const axisLabelSize = 13 * state.axisLabelFontScale;
   const tickLabelSize = 8 * state.axisTickFontScale;
+  const legendTextSize = 13 * legendFontScaleValue();
   return `
     svg { background: #ffffff; }
     text { font-family: Arial, sans-serif; letter-spacing: 0; }
@@ -3020,8 +3051,8 @@ function exportStyles() {
     .sample-point.is-selected-sample .sample-dot { stroke: #1d2528; stroke-width: 2.4; }
     .sample-point.is-selected-layer .sample-ring { fill: none; stroke: #1d2528; stroke-width: 3; opacity: 1; }
     .export-legend-panel { fill: #ffffff; stroke: none; }
-    .export-legend-text { fill: #1d2528; font-size: 13px; font-weight: 760; dominant-baseline: middle; }
-    .export-legend-text-bold { fill: #1d2528; font-size: 13px; font-weight: 850; dominant-baseline: middle; }
+    .export-legend-text { fill: #1d2528; font-size: ${legendTextSize}px; font-weight: 760; dominant-baseline: middle; }
+    .export-legend-text-bold { fill: #1d2528; font-size: ${legendTextSize}px; font-weight: 850; dominant-baseline: middle; }
     .export-legend-swatch { stroke: rgba(0, 0, 0, 0.2); stroke-width: 1; }
     .export-metric-scale { stroke: rgba(0, 0, 0, 0.22); stroke-width: 1; }
   `;
@@ -3207,14 +3238,17 @@ function exportContentBounds(svgNode = els.svg) {
 }
 
 function exportLegendLayout(svgNode = els.svg) {
-  const panelHeight = 44;
+  const panelHeight = Math.max(30, Math.round(44 * legendFontScaleValue()));
   const previousPanelY = plot.height + 22;
   const contentBottom = exportContentBottom(svgNode);
   const panelY = contentBottom + Math.max(18, (previousPanelY - contentBottom) / 2);
+  const diagramBounds = triangleScreenBounds(svgNode);
   return {
     panelHeight,
     panelY,
     centerY: panelY + panelHeight / 2,
+    diagramCenterX: diagramBounds.centerX,
+    diagramWidth: diagramBounds.width,
     height: panelY + panelHeight + 28,
   };
 }
@@ -3234,8 +3268,13 @@ function exportViewport(layout, svgNode = els.svg) {
   };
 }
 
-function exportLegendTargetWidth() {
-  return clamp(triangleScreenWidth(), 560, plot.width - 220);
+function exportLegendTargetWidth(layout = exportLegendLayout()) {
+  const widthScale = Math.max(1, 1 + (legendFontScaleValue() - 1) * 0.18);
+  return clamp(layout.diagramWidth * widthScale, 260, plot.width - 220);
+}
+
+function exportLegendPanelX(panelWidth, layout = exportLegendLayout()) {
+  return layout.diagramCenterX - panelWidth / 2;
 }
 
 function estimatedExportTextWidth(text, size = 13) {
@@ -3295,15 +3334,22 @@ function createExportLegend(layout = exportLegendLayout()) {
     "aria-hidden": "true",
   });
   const { panelHeight, panelY, centerY } = layout;
+  const legendScale = legendFontScaleValue();
+  const legendTextSize = 13 * legendScale;
+  const swatchRadius = Math.max(4, 6 * legendScale);
+  const swatchTextGap = Math.max(6, 7 * legendScale);
+  const itemGapBase = Math.max(12, 18 * legendScale);
+  const panelPadding = Math.max(14, 14 * legendScale);
+  const itemTextX = (x) => x + swatchRadius * 2 + swatchTextGap;
 
   if (state.visualization === "phase") {
-    const itemWidths = phaseFamilies.map(([label]) => 21 + estimatedExportTextWidth(label));
+    const itemWidths = phaseFamilies.map(([label]) => swatchRadius * 2 + swatchTextGap + estimatedExportTextWidth(label, legendTextSize));
     const itemWidthTotal = itemWidths.reduce((sum, width) => sum + width, 0);
-    const panelWidth = Math.max(exportLegendTargetWidth(), itemWidthTotal + 28 + 18 * Math.max(0, itemWidths.length - 1));
+    const panelWidth = Math.max(exportLegendTargetWidth(layout), itemWidthTotal + panelPadding * 2 + itemGapBase * Math.max(0, itemWidths.length - 1));
     const itemGap =
-      phaseFamilies.length > 1 ? Math.max(18, (panelWidth - 28 - itemWidthTotal) / (phaseFamilies.length - 1)) : 0;
-    const panelX = (plot.width - panelWidth) / 2;
-    let x = panelX + 14;
+      phaseFamilies.length > 1 ? Math.max(itemGapBase, (panelWidth - panelPadding * 2 - itemWidthTotal) / (phaseFamilies.length - 1)) : 0;
+    const panelX = exportLegendPanelX(panelWidth, layout);
+    let x = panelX + panelPadding;
 
     group.append(
       createSvgElement("rect", {
@@ -3317,8 +3363,8 @@ function createExportLegend(layout = exportLegendLayout()) {
 
     phaseFamilies.forEach(([label, key], index) => {
       group.append(
-        ...createExportLegendSwatch(key, x + 6, centerY, 6),
-        createExportText(label, x + 19, centerY, "export-legend-text-bold"),
+        ...createExportLegendSwatch(key, x + swatchRadius, centerY, swatchRadius),
+        createExportText(label, itemTextX(x), centerY, "export-legend-text-bold"),
       );
       x += itemWidths[index] + itemGap;
     });
@@ -3333,13 +3379,13 @@ function createExportLegend(layout = exportLegendLayout()) {
       })),
       { label: frameworkNoDataLabel(), color: palette.missing },
     ];
-    const itemWidths = items.map((item) => 21 + estimatedExportTextWidth(item.label));
+    const itemWidths = items.map((item) => swatchRadius * 2 + swatchTextGap + estimatedExportTextWidth(item.label, legendTextSize));
     const itemWidthTotal = itemWidths.reduce((sum, width) => sum + width, 0);
-    const panelWidth = Math.max(exportLegendTargetWidth(), itemWidthTotal + 28 + 18 * Math.max(0, itemWidths.length - 1));
+    const panelWidth = Math.max(exportLegendTargetWidth(layout), itemWidthTotal + panelPadding * 2 + itemGapBase * Math.max(0, itemWidths.length - 1));
     const itemGap =
-      items.length > 1 ? Math.max(18, (panelWidth - 28 - itemWidthTotal) / (items.length - 1)) : 0;
-    const panelX = (plot.width - panelWidth) / 2;
-    let x = panelX + 14;
+      items.length > 1 ? Math.max(itemGapBase, (panelWidth - panelPadding * 2 - itemWidthTotal) / (items.length - 1)) : 0;
+    const panelX = exportLegendPanelX(panelWidth, layout);
+    let x = panelX + panelPadding;
 
     group.append(
       createSvgElement("rect", {
@@ -3353,8 +3399,8 @@ function createExportLegend(layout = exportLegendLayout()) {
 
     items.forEach((item, index) => {
       group.append(
-        createExportColorLegendSwatch(item.color, x + 6, centerY, 6),
-        createExportText(item.label, x + 19, centerY, "export-legend-text-bold"),
+        createExportColorLegendSwatch(item.color, x + swatchRadius, centerY, swatchRadius),
+        createExportText(item.label, itemTextX(x), centerY, "export-legend-text-bold"),
       );
       x += itemWidths[index] + itemGap;
     });
@@ -3366,11 +3412,19 @@ function createExportLegend(layout = exportLegendLayout()) {
   const paletteConfig = metricPalettes[metricKey] || metricPalettes.EE;
   const domain = metricColorDomain(metricKey);
   const label = definition?.label || metricKey;
-  const labelWidth = estimatedExportTextWidth(label, 13);
-  const panelWidth = Math.max(exportLegendTargetWidth(), labelWidth + 10 + 22 + 9 + 126 + 10 + 38 + 18 + 12 + 8 + 52 + 28);
-  const panelX = (plot.width - panelWidth) / 2;
-  let x = panelX + 14;
-  const scaleWidth = Math.max(126, panelWidth - 28 - (labelWidth + 10 + 22 + 9 + 10 + 38 + 18 + 12 + 8 + 52));
+  const labelWidth = estimatedExportTextWidth(label, legendTextSize);
+  const metricScaleHeight = Math.max(8, 12 * legendScale);
+  const metricScaleMinWidth = Math.max(90, 126 * legendScale);
+  const panelWidth = Math.max(
+    exportLegendTargetWidth(layout),
+    labelWidth + 10 * legendScale + 22 * legendScale + 9 * legendScale + metricScaleMinWidth + 10 * legendScale + 38 * legendScale + 18 * legendScale + swatchRadius * 2 + swatchTextGap + 52 * legendScale + panelPadding * 2,
+  );
+  const panelX = exportLegendPanelX(panelWidth, layout);
+  let x = panelX + panelPadding;
+  const scaleWidth = Math.max(
+    metricScaleMinWidth,
+    panelWidth - panelPadding * 2 - (labelWidth + 10 * legendScale + 22 * legendScale + 9 * legendScale + 10 * legendScale + 38 * legendScale + 18 * legendScale + swatchRadius * 2 + swatchTextGap + 52 * legendScale),
+  );
   const gradientId = `exportMetricGradient${metricKey}`;
 
   const defs = createSvgElement("defs");
@@ -3398,33 +3452,33 @@ function createExportLegend(layout = exportLegendLayout()) {
     }),
     createExportText(label, x, centerY, "export-legend-text-bold"),
   );
-  x += labelWidth + 10;
+  x += labelWidth + 10 * legendScale;
   group.append(createExportText(`${formatNumber(domain.min, 0)}%`, x, centerY));
-  x += 31;
+  x += 31 * legendScale;
   group.append(
     createSvgElement("rect", {
       class: "export-metric-scale",
       x,
-      y: centerY - 6,
+      y: centerY - metricScaleHeight / 2,
       width: scaleWidth,
-      height: 12,
-      rx: 6,
+      height: metricScaleHeight,
+      rx: metricScaleHeight / 2,
       fill: `url(#${gradientId})`,
     }),
   );
-  x += scaleWidth + 10;
+  x += scaleWidth + 10 * legendScale;
   group.append(createExportText(`${formatNumber(domain.max, 0)}%`, x, centerY));
-  x += 56;
+  x += 56 * legendScale;
   group.append(
     createSvgElement("circle", {
       class: "export-legend-swatch",
-      cx: x + 6,
+      cx: x + swatchRadius,
       cy: centerY,
-      r: 6,
+      r: swatchRadius,
       fill: paletteConfig.missing,
       stroke: paletteConfig.missing,
     }),
-    createExportText("No data", x + 20, centerY),
+    createExportText("No data", itemTextX(x), centerY),
   );
   return group;
 }
@@ -4962,6 +5016,15 @@ function bindEvents() {
     };
     updateControlStates();
     renderPlot();
+  });
+
+  els.legendFontScale?.addEventListener("change", () => {
+    state = {
+      ...state,
+      legendFontScale: readFontScale(els.legendFontScale),
+    };
+    updateControlStates();
+    updateLegendDockWidth();
   });
 
   els.sampleCircleSizeLevel?.addEventListener("change", () => {

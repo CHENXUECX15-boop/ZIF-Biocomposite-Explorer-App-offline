@@ -874,7 +874,7 @@ h2 {
   color: #3e494c;
   font-size: var(--legend-font-size);
   font-weight: 900;
-  line-height: 20px;
+  line-height: 1.2;
 }
 
 .phase-legend-dock .legend-swatch,
@@ -979,8 +979,9 @@ h2 {
 
 .view-gizmo {
   position: absolute;
+  top: 16px;
   right: 16px;
-  bottom: 16px;
+  bottom: auto;
   z-index: 5;
   display: grid;
   justify-items: center;

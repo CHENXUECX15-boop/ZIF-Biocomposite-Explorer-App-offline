@@ -437,20 +437,20 @@ h2 {
 .display-toggle {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 7px;
   width: fit-content;
   border: 1px solid var(--line);
   border-radius: 7px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   background: #ffffff;
   color: var(--ink);
-  font-size: 12px;
-  font-weight: 780;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .display-toggle input {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   margin: 0;
   accent-color: var(--teal);
 }
@@ -612,12 +612,12 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .plot-toolbar .display-toggle {
-  min-height: 36px;
-  padding: 7px 10px;
+  min-height: 30px;
+  padding: 5px 8px;
   white-space: nowrap;
 }
 
@@ -625,7 +625,7 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .navigation-toolbar {
@@ -700,26 +700,28 @@ h2 {
 .font-size-control {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 36px;
+  gap: 6px;
+  min-height: 30px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  padding: 6px 8px;
+  padding: 5px 7px;
   background: #ffffff;
   color: var(--ink);
-  font-size: 12px;
-  font-weight: 780;
+  font-size: 11px;
+  font-weight: 500;
   white-space: nowrap;
 }
 
 .font-size-control select {
+  width: 62px;
+  min-width: 62px;
   border: 1px solid var(--line);
   border-radius: 5px;
-  padding: 3px 20px 3px 6px;
+  padding: 3px 18px 3px 6px;
   background: #ffffff;
   color: var(--ink);
-  font-size: 12px;
-  font-weight: 760;
+  font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -1940,8 +1942,6 @@ h2 {
 .metric-tab,
 .filter-button,
 .filter-reset,
-.display-toggle,
-.font-size-control,
 .layer-spacing-head,
 .tool-button,
 .range-filter {
@@ -1960,14 +1960,6 @@ h2 {
   font-weight: 400;
 }
 
-.display-toggle,
-.font-size-control {
-  min-height: 34px;
-  padding: 6px 12px;
-  font-weight: 700;
-}
-
-.font-size-control select,
 .range-fields input,
 .layer-spacing-number,
 .plot-toolbar .layer-spacing-number {
@@ -1975,10 +1967,6 @@ h2 {
   font-size: 14px;
   font-weight: 400;
   line-height: 20px;
-}
-
-.font-size-control select {
-  padding: 6px 12px;
 }
 
 .range-fields input {
@@ -1991,16 +1979,36 @@ h2 {
   padding: 6px 12px;
 }
 
-.font-size-control select {
-  padding-right: 28px;
-}
-
 .layer-spacing-head {
   font-weight: 700;
 }
 
 .plot-toolbar .layer-spacing-head {
   font-size: 14px;
+}
+
+.plot-toolbar .display-toggle,
+.plot-toolbar .font-size-control {
+  min-height: 30px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.plot-toolbar .display-toggle input {
+  width: 13px;
+  height: 13px;
+}
+
+.plot-toolbar .font-size-control select {
+  width: 58px;
+  min-width: 58px;
+  height: 30px;
+  padding: 3px 18px 3px 6px;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 16px;
 }
 
 .plot-toolbar .mode-tab,

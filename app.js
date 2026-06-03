@@ -216,7 +216,7 @@ const defaultView = {
 
 let state = {
   dataset: "WW",
-  sample: 32,
+  sample: 35,
   concentration: "25 mg/mL",
   layerGap: plot.defaultLayerGap,
   visibleConcentration: "all",

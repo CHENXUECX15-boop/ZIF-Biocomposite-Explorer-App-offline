@@ -4764,8 +4764,7 @@ async function stitchCurrentPageFromCapture(video) {
 }
 
 function pageExportScale() {
-  const deviceScale = Number(window.devicePixelRatio) || 1;
-  return Math.min(2, Math.max(1, deviceScale));
+  return 3;
 }
 
 function syncCloneTextColors(clonedDocument, selector) {

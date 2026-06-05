@@ -47,6 +47,34 @@
           </div>
         </section>
 
+        <section class="control-section composition-search-section" aria-label="Composition search">
+          <h2>Search</h2>
+          <div class="composition-search" id="compositionSearch" aria-label="Composition search">
+            <div class="composition-search-fields">
+              <label>
+                <span>M</span>
+                <input id="searchM" type="number" min="0" max="100" step="1" inputmode="numeric" data-search-key="M" />
+              </label>
+              <label>
+                <span>L</span>
+                <input id="searchL" type="number" min="0" max="100" step="1" inputmode="numeric" data-search-key="L" />
+              </label>
+              <label>
+                <span>BSA</span>
+                <input id="searchBSA" type="number" min="0" max="100" step="1" inputmode="numeric" data-search-key="BSA" />
+              </label>
+            </div>
+            <label class="composition-search-concentration">
+              <span>Conc.</span>
+              <input id="searchConcentration" type="number" min="12.5" max="100" step="1" inputmode="decimal" value="25" />
+            </label>
+            <div class="composition-search-foot">
+              <output class="composition-search-status" id="searchStatus" aria-live="polite"></output>
+              <button class="composition-search-clear" id="clearSearchPoint" type="button">Clear</button>
+            </div>
+          </div>
+        </section>
+
         <section class="control-section">
           <h2>Concentration</h2>
           <div class="filter-group" id="concentrationFilters" aria-label="Concentration filter"></div>

@@ -219,6 +219,20 @@ const defaultView = {
   panY: 0,
 };
 
+const searchConcentrationBounds = Object.freeze({
+  min: 12.5,
+  max: 100,
+  step: 1,
+});
+
+const defaultSearchPoint = Object.freeze({
+  M: "",
+  L: "",
+  BSA: "",
+  concentration: "25",
+  autoKey: null,
+});
+
 let state = {
   dataset: "WW",
   sample: 35,
@@ -245,6 +259,7 @@ let state = {
     (filters, key) => ({ ...filters, [key]: { ...defaultValueFilters[key] } }),
     {},
   ),
+  searchPoint: { ...defaultSearchPoint },
   dragMode: "rotate",
   ...defaultView,
 };
@@ -275,6 +290,11 @@ const els = {
   layerGapNumber: document.getElementById("layerGapNumber"),
   valueFilters: document.getElementById("valueFilters"),
   resetValueFilters: document.getElementById("resetValueFilters"),
+  compositionSearch: document.getElementById("compositionSearch"),
+  searchInputs: Array.from(document.querySelectorAll("[data-search-key]")),
+  searchConcentration: document.getElementById("searchConcentration"),
+  clearSearchPoint: document.getElementById("clearSearchPoint"),
+  searchStatus: document.getElementById("searchStatus"),
   phaseFilters: document.getElementById("phaseFilters"),
   modeTabs: Array.from(document.querySelectorAll(".mode-tab")),
   resetView: document.getElementById("resetView"),
@@ -364,6 +384,186 @@ function renderDatasetLabel(container, dataset) {
     return;
   }
   container.textContent = parts.join("");
+}
+
+function searchPointValue(rawValue) {
+  const text = String(rawValue ?? "").trim();
+  if (!text) return null;
+  const value = Number(text);
+  return Number.isFinite(value) ? value : null;
+}
+
+function formatSearchInputValue(value) {
+  const rounded = Number(value.toFixed(2));
+  return Number.isFinite(rounded) ? String(rounded) : "";
+}
+
+function fixedConcentrationValue(concentration) {
+  const value = Number.parseFloat(String(concentration ?? ""));
+  return Number.isFinite(value) ? value : null;
+}
+
+function searchConcentrationValue(rawValue) {
+  const text = String(rawValue ?? "").trim();
+  if (!text) return null;
+  const value = Number(text);
+  if (
+    !Number.isFinite(value) ||
+    value < searchConcentrationBounds.min ||
+    value > searchConcentrationBounds.max
+  ) {
+    return null;
+  }
+  return value;
+}
+
+function formatSearchConcentrationValue(value) {
+  return formatNumber(value, 1);
+}
+
+function formatSearchConcentrationPlain(value) {
+  return `${formatSearchConcentrationValue(value)} mg mL^-1`;
+}
+
+function searchConcentrationLayerIndex(value) {
+  const layers = PHASE_DATA.concentrations
+    .map((concentration, index) => ({
+      concentration,
+      index,
+      value: fixedConcentrationValue(concentration),
+    }))
+    .filter((layer) => layer.value !== null);
+  if (!layers.length) return 0;
+  if (value <= layers[0].value) return layers[0].index;
+
+  for (let index = 0; index < layers.length - 1; index += 1) {
+    const lower = layers[index];
+    const upper = layers[index + 1];
+    if (value <= upper.value) {
+      const span = Math.max(1, upper.value - lower.value);
+      const progress = (value - lower.value) / span;
+      return lower.index + (upper.index - lower.index) * progress;
+    }
+  }
+
+  return layers[layers.length - 1].index;
+}
+
+function searchMatchesFixedLayer(concentration, value) {
+  const fixedValue = fixedConcentrationValue(concentration);
+  return fixedValue !== null && Math.abs(fixedValue - value) <= 0.05;
+}
+
+function autoCompleteSearchPoint(searchPoint, changedKey = null) {
+  const keys = ["M", "L", "BSA"];
+  const next = { ...searchPoint };
+  const previousAutoKey = state.searchPoint.autoKey;
+  if (previousAutoKey && changedKey === previousAutoKey) {
+    next.autoKey = null;
+  } else if (previousAutoKey && keys.includes(previousAutoKey)) {
+    const sourceKeys = keys.filter((key) => key !== previousAutoKey);
+    const sourceValues = sourceKeys.map((key) => searchPointValue(next[key]));
+    if (sourceValues.every((value) => value !== null && value >= 0 && value <= 100)) {
+      const remaining = 100 - sourceValues.reduce((sum, value) => sum + value, 0);
+      if (remaining >= -0.05 && remaining <= 100.05) {
+        next[previousAutoKey] = formatSearchInputValue(clamp(remaining, 0, 100));
+        next.autoKey = previousAutoKey;
+        return next;
+      }
+    }
+    next[previousAutoKey] = "";
+    next.autoKey = null;
+  }
+
+  const filledKeys = keys.filter((key) => String(next[key] ?? "").trim() !== "");
+  if (filledKeys.length !== 2) return next;
+
+  const missingKey = keys.find((key) => !filledKeys.includes(key));
+  const values = filledKeys.map((key) => searchPointValue(next[key]));
+  if (!missingKey || !values.every((value) => value !== null && value >= 0 && value <= 100)) {
+    return next;
+  }
+
+  const remaining = 100 - values.reduce((sum, value) => sum + value, 0);
+  if (remaining < -0.05 || remaining > 100.05) return next;
+  next[missingKey] = formatSearchInputValue(clamp(remaining, 0, 100));
+  next.autoKey = missingKey;
+  return next;
+}
+
+function searchPointStatus(searchPoint = state.searchPoint) {
+  const rawValues = [searchPoint.M, searchPoint.L, searchPoint.BSA].map((value) =>
+    String(value ?? "").trim(),
+  );
+  const hasInput = rawValues.some(Boolean);
+  const concentration = searchConcentrationValue(searchPoint.concentration);
+  const fallbackConcentration =
+    searchConcentrationValue(defaultSearchPoint.concentration) ?? searchConcentrationBounds.min;
+  if (!hasInput) {
+    return {
+      valid: false,
+      hasInput,
+      concentration: concentration ?? fallbackConcentration,
+      message: "",
+    };
+  }
+
+  if (concentration === null) {
+    return {
+      valid: false,
+      hasInput,
+      concentration: fallbackConcentration,
+      message: `Conc. ${searchConcentrationBounds.min}-${searchConcentrationBounds.max}`,
+    };
+  }
+
+  const [m, l, bsa] = rawValues.map(searchPointValue);
+  if (
+    [m, l, bsa].some(
+      (value, index) => rawValues[index] && (value === null || value < 0 || value > 100),
+    )
+  ) {
+    return { valid: false, hasInput, concentration, message: "Use 0-100" };
+  }
+
+  if (![m, l, bsa].every((value) => value !== null)) {
+    const partialTotal = [m, l, bsa].reduce(
+      (sum, value) => sum + (value === null ? 0 : value),
+      0,
+    );
+    return {
+      valid: false,
+      hasInput,
+      concentration,
+      total: partialTotal,
+      message: partialTotal > 100.05 ? `Total ${formatNumber(partialTotal, 1)}%` : "",
+    };
+  }
+
+  const total = m + l + bsa;
+  if (Math.abs(total - 100) > 0.05) {
+    return {
+      valid: false,
+      hasInput,
+      m,
+      l,
+      bsa,
+      concentration,
+      total,
+      message: `Total ${formatNumber(total, 1)}%`,
+    };
+  }
+
+  return {
+    valid: true,
+    hasInput,
+    m,
+    l,
+    bsa,
+    concentration,
+    total,
+    message: `${formatNumber(total, 1)}%`,
+  };
 }
 
 function visualSizeScale() {
@@ -1015,6 +1215,10 @@ function activeConcentrations() {
     );
 }
 
+function displayConcentrations() {
+  return activeConcentrations();
+}
+
 function phaseMatches(phase) {
   const activeFilters = selectedPhaseFilters();
   return !activeFilters.length || activeFilters.includes(normalizePhase(phase));
@@ -1115,11 +1319,19 @@ function projectedBounds() {
     labelPoint,
   ];
 
-  activeConcentrations().forEach(({ index }) => {
+  displayConcentrations().forEach(({ index }) => {
     vertices.forEach((vertex) => {
       points.push(rotatePoint({ ...vertex, z: layerZ(index) }));
     });
   });
+
+  const search = searchPointStatus();
+  if (search.valid) {
+    const searchLayerIndex = searchConcentrationLayerIndex(search.concentration);
+    vertices.forEach((vertex) => {
+      points.push(rotatePoint({ ...vertex, z: layerZ(searchLayerIndex) }));
+    });
+  }
 
   const xs = points.map((point) => point.x);
   const ys = points.map((point) => point.y);
@@ -1824,7 +2036,117 @@ function renderSamples(group, concentration, index, fit, samples) {
   });
 }
 
-function renderLayer(concentration, index, fit, samples) {
+function renderSearchMarkerAt(group, point, search) {
+  const markerRadius = scaledSize(15);
+  const crossRadius = scaledSize(23);
+  const marker = createSvgElement("g", {
+    class: "composition-search-marker",
+    role: "img",
+    "aria-label": `Search point, ${formatNumber(search.m, 1)} M, ${formatNumber(search.l, 1)} L, ${formatNumber(search.bsa, 1)} BSA, ${formatSearchConcentrationPlain(search.concentration)}`,
+  });
+
+  marker.append(
+    createSvgElement("circle", {
+      class: "search-marker-halo",
+      cx: point.x,
+      cy: point.y,
+      r: markerRadius,
+    }),
+    createSvgElement("line", {
+      class: "search-marker-cross",
+      x1: point.x - crossRadius,
+      y1: point.y,
+      x2: point.x + crossRadius,
+      y2: point.y,
+    }),
+    createSvgElement("line", {
+      class: "search-marker-cross",
+      x1: point.x,
+      y1: point.y - crossRadius,
+      x2: point.x,
+      y2: point.y + crossRadius,
+    }),
+    createSvgElement("circle", {
+      class: "search-marker-core",
+      cx: point.x,
+      cy: point.y,
+      r: scaledSize(5.5),
+    }),
+  );
+
+  const label = createSvgElement("text", {
+    class: "search-marker-label",
+    x: point.x + scaledSize(18),
+    y: point.y - scaledSize(14),
+    style: `font-size: ${scaledSize(13)}px`,
+  });
+  label.textContent = "Search";
+  marker.append(label);
+
+  const title = createSvgElement("title");
+  title.textContent = `Search | M ${formatNumber(search.m, 1)} wt.% | L ${formatNumber(search.l, 1)} wt.% | BSA ${formatNumber(search.bsa, 1)} wt.% | ${formatSearchConcentrationPlain(search.concentration)}`;
+  marker.append(title);
+
+  group.append(marker);
+}
+
+function renderSearchOverlay(fit) {
+  const search = searchPointStatus();
+  if (!search.valid) return null;
+
+  const layerIndex = searchConcentrationLayerIndex(search.concentration);
+  const vertices = [
+    screenFor(makePoint(100, 0, 0), layerIndex, fit),
+    screenFor(makePoint(0, 100, 0), layerIndex, fit),
+    screenFor(makePoint(0, 0, 100), layerIndex, fit),
+  ];
+  const averageDepth = vertices.reduce((sum, point) => sum + point.depth, 0) / vertices.length;
+  const group = createSvgElement("g", {
+    class: "composition-search-overlay",
+    "data-search-concentration": String(search.concentration),
+    "data-depth": averageDepth,
+  });
+  const fixedLayerVisible = activeConcentrations().some(({ concentration }) =>
+    searchMatchesFixedLayer(concentration, search.concentration),
+  );
+
+  if (!fixedLayerVisible) {
+    group.append(
+      createSvgElement("polygon", {
+        class: "search-layer-plane",
+        points: pointsAttribute(vertices),
+      }),
+    );
+
+    if (state.showConcentrationLabels) {
+      const minX = Math.min(...vertices.map((point) => point.x));
+      const minY = Math.min(...vertices.map((point) => point.y));
+      const maxY = Math.max(...vertices.map((point) => point.y));
+      const labelNode = svgConcentrationText(
+        group,
+        `${formatSearchConcentrationValue(search.concentration)} mg/mL`,
+        {
+          x: minX - 112,
+          y: (minY + maxY) / 2,
+        },
+        "layer-label",
+        {
+          "text-anchor": "end",
+        },
+      );
+      labelNode.classList.add("search-layer-label");
+    }
+  }
+
+  renderSearchMarkerAt(
+    group,
+    screenFor(makePoint(search.m, search.l, search.bsa), layerIndex, fit),
+    search,
+  );
+  return group;
+}
+
+function renderLayer(concentration, index, fit, samples, options = {}) {
   const vertices = [
     screenFor(makePoint(100, 0, 0), index, fit),
     screenFor(makePoint(0, 100, 0), index, fit),
@@ -1852,7 +2174,9 @@ function renderLayer(concentration, index, fit, samples) {
   if (shouldRenderAxisForLayer(index)) {
     renderAxisLabels(group, index, fit);
   }
-  renderSamples(group, concentration, index, fit, samples);
+  if (options.showSamples !== false) {
+    renderSamples(group, concentration, index, fit, samples);
+  }
 
   const minX = Math.min(...vertices.map((point) => point.x));
   const minY = Math.min(...vertices.map((point) => point.y));
@@ -1918,13 +2242,19 @@ function renderPlot() {
   const samples = PHASE_DATA.datasets[state.dataset] || [];
   const fit = projectedBounds();
   hitTargets = [];
-  const layers = activeConcentrations()
+  const layers = displayConcentrations()
     .map(({ concentration, index }) => renderLayer(concentration, index, fit, samples))
     .sort((a, b) => Number(a.dataset.depth) - Number(b.dataset.depth));
+  const searchOverlay = renderSearchOverlay(fit);
   const defs = [createFrameworkBallDefs()];
 
   els.svg.setAttribute("viewBox", `0 0 ${plot.width} ${plot.height}`);
-  els.svg.replaceChildren(...(isExporting ? [] : [renderPlotBackground()]), ...defs, ...layers);
+  els.svg.replaceChildren(
+    ...(isExporting ? [] : [renderPlotBackground()]),
+    ...defs,
+    ...layers,
+    ...(searchOverlay ? [searchOverlay] : []),
+  );
   updateLegendDockWidth();
   updateHighlights();
 }
@@ -2783,6 +3113,12 @@ function setView(view) {
 }
 
 function renderFilterControls() {
+  if (els.searchConcentration) {
+    els.searchConcentration.min = String(searchConcentrationBounds.min);
+    els.searchConcentration.max = String(searchConcentrationBounds.max);
+    els.searchConcentration.step = String(searchConcentrationBounds.step);
+  }
+
   const allConcentration = document.createElement("button");
   allConcentration.className = "filter-button is-active";
   allConcentration.type = "button";
@@ -2889,6 +3225,27 @@ function updateControlStates() {
     const range = state.valueFilters[input.dataset.filterKey];
     input.value = range[input.dataset.rangeBound];
   });
+  if (els.compositionSearch) {
+    const search = searchPointStatus();
+    els.searchInputs.forEach((input) => {
+      input.min = "0";
+      input.max = "100";
+      input.step = "1";
+      input.value = state.searchPoint[input.dataset.searchKey] ?? "";
+    });
+    if (els.searchConcentration) {
+      els.searchConcentration.min = String(searchConcentrationBounds.min);
+      els.searchConcentration.max = String(searchConcentrationBounds.max);
+      els.searchConcentration.step = String(searchConcentrationBounds.step);
+      els.searchConcentration.value =
+        state.searchPoint.concentration ?? defaultSearchPoint.concentration;
+    }
+    els.compositionSearch.classList.toggle("has-search-point", search.valid);
+    els.compositionSearch.classList.toggle("has-search-error", search.hasInput && !search.valid);
+    if (els.searchStatus) {
+      els.searchStatus.textContent = search.message;
+    }
+  }
   els.modeTabs.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.dragMode === state.dragMode);
   });
@@ -2925,6 +3282,35 @@ function updateValueFilter(input) {
       [key]: nextRange,
     },
   };
+}
+
+function updateSearchPointFromControls(changedKey = null) {
+  const nextSearch = { ...state.searchPoint };
+  els.searchInputs.forEach((input) => {
+    nextSearch[input.dataset.searchKey] = input.value;
+  });
+  if (els.searchConcentration) {
+    nextSearch.concentration = els.searchConcentration.value;
+  }
+
+  state = {
+    ...state,
+    searchPoint: autoCompleteSearchPoint(nextSearch, changedKey),
+  };
+  updateControlStates();
+  renderPlot();
+}
+
+function clearSearchPoint() {
+  state = {
+    ...state,
+    searchPoint: {
+      ...defaultSearchPoint,
+      concentration: state.searchPoint.concentration || defaultSearchPoint.concentration,
+    },
+  };
+  updateControlStates();
+  renderPlot();
 }
 
 function bindRotation() {
@@ -5156,6 +5542,16 @@ function bindEvents() {
 
   els.layerGapNumber?.addEventListener("input", () => updateLayerGapFromNumber(false));
   els.layerGapNumber?.addEventListener("change", () => updateLayerGapFromNumber(true));
+
+  els.compositionSearch?.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-search-key]");
+    if (!input) return;
+    updateSearchPointFromControls(input.dataset.searchKey);
+  });
+
+  els.searchConcentration?.addEventListener("input", () => updateSearchPointFromControls());
+  els.searchConcentration?.addEventListener("change", () => updateSearchPointFromControls());
+  els.clearSearchPoint?.addEventListener("click", clearSearchPoint);
 
   els.valueFilters.addEventListener("input", (event) => {
     const input = event.target.closest("[data-filter-key][data-range-bound]");

@@ -426,6 +426,83 @@ h2 {
   font-weight: 760;
 }
 
+.composition-search {
+  display: grid;
+  gap: 8px;
+}
+
+.composition-search-clear {
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 5px 10px;
+  background: #ffffff;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.composition-search-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.composition-search label {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 1.15;
+}
+
+.composition-search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 5px 6px;
+  background: #ffffff;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.composition-search-concentration {
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px !important;
+}
+
+.composition-search-status {
+  min-height: 14px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 720;
+  line-height: 1.2;
+}
+
+.composition-search-foot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.composition-search.has-search-point .composition-search-status {
+  color: var(--teal);
+}
+
+.composition-search.has-search-error .composition-search-status {
+  color: #c42032;
+}
+
 .mixed-legend-swatch {
   overflow: visible;
   border: 0 !important;
@@ -1147,6 +1224,56 @@ h2 {
 
 .sample-ring {
   opacity: 0;
+}
+
+.composition-search-overlay,
+.composition-search-marker {
+  pointer-events: none;
+}
+
+.search-layer-plane {
+  fill: rgba(255, 191, 47, 0.1);
+  stroke: #c42032;
+  stroke-dasharray: 8 6;
+  stroke-width: 1.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.search-layer-label {
+  fill: #c42032;
+}
+
+.composition-search-marker .search-marker-halo {
+  fill: rgba(255, 255, 255, 0.92);
+  stroke: #1d2528;
+  stroke-width: 2.2;
+  filter: drop-shadow(0 4px 5px rgba(34, 32, 28, 0.24));
+  vector-effect: non-scaling-stroke;
+}
+
+.composition-search-marker .search-marker-core {
+  fill: #ffbf2f;
+  stroke: #c42032;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.composition-search-marker .search-marker-cross {
+  stroke: #c42032;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.composition-search-marker .search-marker-label {
+  fill: #1d2528;
+  font-size: 13px;
+  font-weight: 850;
+  paint-order: stroke fill;
+  pointer-events: none;
+  stroke: #ffffff;
+  stroke-linejoin: round;
+  stroke-width: 3px;
 }
 
 .detail-panel {

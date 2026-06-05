@@ -115,7 +115,7 @@ const phaseReplicateStats = {
     35: {
       "25 mg/mL": [
         { token: "sod", mean: 93.333333, error: 2.886751 },
-        { token: "ZIF-C", mean: 5.666667, error: 4.041452 },
+        { token: "ZIF-C", mean: 6.666667, error: 4.041452 },
       ],
     },
   },
@@ -204,6 +204,11 @@ const irPlot = {
 };
 const irRawYMax = 100;
 const irDisplayYMax = 1;
+
+const datasetLabels = Object.freeze({
+  WW: Object.freeze({ text: "TD-H2O", parts: ["TD-H", "2", "O"] }),
+  EW: Object.freeze({ text: "TD-EtOH", parts: ["TD-EtOH"] }),
+});
 
 const defaultView = {
   rotationX: 1.25,
@@ -340,6 +345,25 @@ function renderConcentrationHtml(container, value) {
   const sup = document.createElement("sup");
   sup.textContent = "-1";
   container.replaceChildren(document.createTextNode(concentrationPrefix(value)), sup);
+}
+
+function datasetLabelParts(dataset) {
+  return datasetLabels[dataset]?.parts || [String(dataset || "")];
+}
+
+function datasetPlainLabel(dataset) {
+  return datasetLabels[dataset]?.text || String(dataset || "");
+}
+
+function renderDatasetLabel(container, dataset) {
+  const parts = datasetLabelParts(dataset);
+  if (parts.length === 3) {
+    const sub = document.createElement("sub");
+    sub.textContent = parts[1];
+    container.replaceChildren(document.createTextNode(parts[0]), sub, document.createTextNode(parts[2]));
+    return;
+  }
+  container.textContent = parts.join("");
 }
 
 function visualSizeScale() {
@@ -2597,7 +2621,7 @@ function stylePhaseChip(chip, phase, stats = null) {
 function updateDetail() {
   const sample = currentSample();
   if (!sample) {
-    els.detailDataset.textContent = state.dataset;
+    renderDatasetLabel(els.detailDataset, state.dataset);
     if (els.detailHeaderConcentration) els.detailHeaderConcentration.textContent = "";
     els.detailTitle.textContent = "No sample selected";
     els.selectedConcentration.textContent = "";
@@ -2632,7 +2656,7 @@ function updateDetail() {
   const afEntry = metricEntry("AF", sample, state.concentration);
   const currentFrameworkEntry = frameworkEntry(sample, state.concentration);
 
-  els.detailDataset.textContent = state.dataset;
+  renderDatasetLabel(els.detailDataset, state.dataset);
   els.detailTitle.textContent = `Sample ${sample.sample}`;
   if (els.detailHeaderConcentration) renderConcentrationHtml(els.detailHeaderConcentration, state.concentration);
   renderConcentrationHtml(els.selectedConcentration, state.concentration);
@@ -2799,9 +2823,11 @@ function renderFilterControls() {
 }
 
 function updateControlStates() {
-  els.tabs.forEach((item) =>
-    item.classList.toggle("is-active", item.dataset.dataset === state.dataset),
-  );
+  els.tabs.forEach((item) => {
+    renderDatasetLabel(item, item.dataset.dataset);
+    item.setAttribute("aria-label", datasetPlainLabel(item.dataset.dataset));
+    item.classList.toggle("is-active", item.dataset.dataset === state.dataset);
+  });
   els.concentrationFilters.querySelectorAll("[data-concentration-filter]").forEach((button) => {
     button.classList.toggle(
       "is-active",
@@ -3848,6 +3874,55 @@ function drawButtonCanvas(ctx, text, x, y, width, height, active = false) {
   ctx.fillText(text, x + width / 2, y + height / 2 + 1);
 }
 
+function measureDatasetLabelCanvas(ctx, dataset, size, weight) {
+  const parts = datasetLabelParts(dataset);
+  if (parts.length !== 3) {
+    setCanvasFont(ctx, size, weight);
+    return ctx.measureText(parts.join("")).width;
+  }
+
+  setCanvasFont(ctx, size, weight);
+  const prefixWidth = ctx.measureText(parts[0]).width;
+  const suffixWidth = ctx.measureText(parts[2]).width;
+  setCanvasFont(ctx, size * 0.68, weight);
+  return prefixWidth + ctx.measureText(parts[1]).width + suffixWidth;
+}
+
+function drawDatasetLabelCanvas(ctx, dataset, x, y, size = 16, weight = 760, align = "left") {
+  const parts = datasetLabelParts(dataset);
+  const totalWidth = measureDatasetLabelCanvas(ctx, dataset, size, weight);
+  let cursor = x;
+  if (align === "center") cursor -= totalWidth / 2;
+  if (align === "right") cursor -= totalWidth;
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+
+  if (parts.length !== 3) {
+    setCanvasFont(ctx, size, weight);
+    ctx.fillText(parts.join(""), cursor, y);
+    return;
+  }
+
+  setCanvasFont(ctx, size, weight);
+  ctx.fillText(parts[0], cursor, y);
+  cursor += ctx.measureText(parts[0]).width;
+
+  setCanvasFont(ctx, size * 0.68, weight);
+  ctx.fillText(parts[1], cursor, y + size * 0.28);
+  cursor += ctx.measureText(parts[1]).width;
+
+  setCanvasFont(ctx, size, weight);
+  ctx.fillText(parts[2], cursor, y);
+}
+
+function drawDatasetButtonCanvas(ctx, dataset, x, y, width, height, active = false) {
+  drawRoundRect(ctx, x, y, width, height, 7, active ? pageExportTheme.ink : "#ffffff", pageExportTheme.line, 1);
+  const size = 14;
+  ctx.fillStyle = active ? "#ffffff" : pageExportTheme.muted;
+  drawDatasetLabelCanvas(ctx, dataset, x + width / 2, y + height / 2 + size * 0.36, size, 760, "center");
+}
+
 function drawSectionTitle(ctx, text, x, y) {
   setCanvasFont(ctx, 15, 820);
   ctx.fillStyle = pageExportTheme.muted;
@@ -4089,8 +4164,18 @@ function drawControlsPanel(ctx, x, y, width) {
   drawSectionTitle(ctx, "Dataset", sectionX, cursor);
   cursor += 18;
   drawRoundRect(ctx, sectionX, cursor, innerW, 60, 8, "rgba(255,253,248,0.8)", pageExportTheme.line, 1);
-  drawButtonCanvas(ctx, "WW", sectionX + 8, cursor + 8, 78, 44, state.dataset === "WW");
-  drawButtonCanvas(ctx, "EW", sectionX + 96, cursor + 8, 78, 44, state.dataset === "EW");
+  const datasetButtonGap = 8;
+  const datasetButtonW = (innerW - 16 - datasetButtonGap) / 2;
+  drawDatasetButtonCanvas(ctx, "WW", sectionX + 8, cursor + 8, datasetButtonW, 44, state.dataset === "WW");
+  drawDatasetButtonCanvas(
+    ctx,
+    "EW",
+    sectionX + 8 + datasetButtonW + datasetButtonGap,
+    cursor + 8,
+    datasetButtonW,
+    44,
+    state.dataset === "EW",
+  );
   cursor += 96;
 
   drawSectionTitle(ctx, "Concentration", sectionX, cursor);
@@ -4309,7 +4394,7 @@ function drawDetailPanel(ctx, sample, x, y, width, xrdImage, irImage) {
   setCanvasFont(ctx, 34, 880);
   ctx.fillStyle = pageExportTheme.accentDark;
   ctx.textAlign = "left";
-  ctx.fillText(state.dataset, x + 24, cursor);
+  drawDatasetLabelCanvas(ctx, state.dataset, x + 24, cursor, 34, 880);
   setCanvasFont(ctx, 34, 880);
   ctx.fillStyle = pageExportTheme.ink;
   ctx.textAlign = "right";

@@ -492,7 +492,7 @@
                                     "ratio":  8,
                                     "phases":  {
                                                    "12.5 mg/mL":  "ZIF-C",
-                                                   "25 mg/mL":  "95%sod+2%ZIF-C",
+                                                   "25 mg/mL":  "95%sod+5%ZIF-C",
                                                    "50 mg/mL":  "sod",
                                                    "75 mg/mL":  "sod",
                                                    "100 mg/mL":  "sod"

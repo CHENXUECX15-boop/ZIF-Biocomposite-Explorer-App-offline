@@ -39,14 +39,6 @@
 
     <main class="app-shell">
       <aside class="controls-panel" aria-label="Display controls">
-        <section class="control-section">
-          <h2>Dataset</h2>
-          <div class="dataset-tabs" aria-label="Dataset">
-            <button class="dataset-tab is-active" type="button" data-dataset="WW">TD-H<sub>2</sub>O</button>
-            <button class="dataset-tab" type="button" data-dataset="EW">TD-EtOH</button>
-          </div>
-        </section>
-
         <section class="control-section composition-search-section" aria-label="Composition search">
           <h2>Search</h2>
           <div class="composition-search" id="compositionSearch" aria-label="Composition search">
@@ -72,6 +64,14 @@
               <output class="composition-search-status" id="searchStatus" aria-live="polite"></output>
               <button class="composition-search-clear" id="clearSearchPoint" type="button">Clear</button>
             </div>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <h2>Dataset</h2>
+          <div class="dataset-tabs" aria-label="Dataset">
+            <button class="dataset-tab is-active" type="button" data-dataset="WW">TD-H<sub>2</sub>O</button>
+            <button class="dataset-tab" type="button" data-dataset="EW">TD-EtOH</button>
           </div>
         </section>
 

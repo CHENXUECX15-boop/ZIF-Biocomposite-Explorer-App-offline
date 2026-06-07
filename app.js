@@ -219,6 +219,11 @@ const defaultView = {
   panY: 0,
 };
 
+const concentrationLabelLayout = Object.freeze({
+  gapRatio: 0.18,
+  baselineRatio: 0.34,
+});
+
 const searchConcentrationBounds = Object.freeze({
   min: 12.5,
   max: 100,
@@ -1290,6 +1295,14 @@ function makePoint(m, l, bsa) {
   return localForComposition({ M: m, L: l, BSA: bsa });
 }
 
+function layerLocalVertices() {
+  return [
+    makePoint(100, 0, 0),
+    makePoint(0, 100, 0),
+    makePoint(0, 0, 100),
+  ];
+}
+
 function rotatePoint(point) {
   const cosZ = Math.cos(state.rotationZ);
   const sinZ = Math.sin(state.rotationZ);
@@ -1309,36 +1322,54 @@ function rotatePoint(point) {
   return { x: xy, y: yx, depth: zy };
 }
 
-function projectedBounds() {
-  const points = [];
-  const labelPoint = { x: -plot.triangleWidth / 2 - 130, y: -plot.triangleHeight / 2 + 26 };
-  const vertices = [
-    makePoint(100, 0, 0),
-    makePoint(0, 100, 0),
-    makePoint(0, 0, 100),
-    labelPoint,
-  ];
-
-  displayConcentrations().forEach(({ index }) => {
-    vertices.forEach((vertex) => {
-      points.push(rotatePoint({ ...vertex, z: layerZ(index) }));
-    });
-  });
-
-  const search = searchPointStatus();
-  if (search.valid) {
-    const searchLayerIndex = searchConcentrationLayerIndex(search.concentration);
-    vertices.forEach((vertex) => {
-      points.push(rotatePoint({ ...vertex, z: layerZ(searchLayerIndex) }));
-    });
-  }
-
+function boundsForPoints(points) {
   const xs = points.map((point) => point.x);
   const ys = points.map((point) => point.y);
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
+  return {
+    minX,
+    maxX,
+    minY,
+    maxY,
+    width: maxX - minX,
+    height: maxY - minY,
+    centerX: (minX + maxX) / 2,
+    centerY: (minY + maxY) / 2,
+  };
+}
+
+function projectedLayerVertices(index) {
+  return layerLocalVertices().map((vertex) => rotatePoint({ ...vertex, z: layerZ(index) }));
+}
+
+function concentrationLabelAnchorForLayer(vertices) {
+  const layerBounds = boundsForPoints(vertices);
+  const baseBounds = boundsForPoints([vertices[0], vertices[1]]);
+  return {
+    x: baseBounds.minX - layerBounds.width * concentrationLabelLayout.gapRatio,
+    y: baseBounds.centerY,
+  };
+}
+
+function projectedBounds() {
+  const points = [];
+
+  displayConcentrations().forEach(({ index }) => {
+    const vertices = projectedLayerVertices(index);
+    points.push(...vertices, concentrationLabelAnchorForLayer(vertices));
+  });
+
+  const search = searchPointStatus();
+  if (search.valid) {
+    const searchLayerIndex = searchConcentrationLayerIndex(search.concentration);
+    const vertices = projectedLayerVertices(searchLayerIndex);
+    points.push(...vertices, concentrationLabelAnchorForLayer(vertices));
+  }
+
+  const { minX, maxX, minY, maxY } = boundsForPoints(points);
   const baseScale = Math.min(
     (plot.width - plot.margin * 2) / Math.max(1, maxX - minX),
     (plot.height - plot.margin * 2) / Math.max(1, maxY - minY),
@@ -1358,6 +1389,19 @@ function screenFor(local, layerIndex, fit, dx = 0, dy = 0) {
     x: rotated.x * fit.scale + fit.offsetX + dx,
     y: rotated.y * fit.scale + fit.offsetY + dy,
     depth: rotated.depth,
+  };
+}
+
+function layerScreenVertices(index, fit) {
+  return layerLocalVertices().map((vertex) => screenFor(vertex, index, fit));
+}
+
+function concentrationLabelPointForLayer(vertices) {
+  const anchor = concentrationLabelAnchorForLayer(vertices);
+  const fontSize = scaledSize(textSizeForClass("layer-label"));
+  return {
+    x: anchor.x,
+    y: anchor.y + fontSize * concentrationLabelLayout.baselineRatio,
   };
 }
 
@@ -2095,11 +2139,7 @@ function renderSearchOverlay(fit) {
   if (!search.valid) return null;
 
   const layerIndex = searchConcentrationLayerIndex(search.concentration);
-  const vertices = [
-    screenFor(makePoint(100, 0, 0), layerIndex, fit),
-    screenFor(makePoint(0, 100, 0), layerIndex, fit),
-    screenFor(makePoint(0, 0, 100), layerIndex, fit),
-  ];
+  const vertices = layerScreenVertices(layerIndex, fit);
   const averageDepth = vertices.reduce((sum, point) => sum + point.depth, 0) / vertices.length;
   const group = createSvgElement("g", {
     class: "composition-search-overlay",
@@ -2119,16 +2159,10 @@ function renderSearchOverlay(fit) {
     );
 
     if (state.showConcentrationLabels) {
-      const minX = Math.min(...vertices.map((point) => point.x));
-      const minY = Math.min(...vertices.map((point) => point.y));
-      const maxY = Math.max(...vertices.map((point) => point.y));
       const labelNode = svgConcentrationText(
         group,
         `${formatSearchConcentrationValue(search.concentration)} mg/mL`,
-        {
-          x: minX - 112,
-          y: (minY + maxY) / 2,
-        },
+        concentrationLabelPointForLayer(vertices),
         "layer-label",
         {
           "text-anchor": "end",
@@ -2147,11 +2181,7 @@ function renderSearchOverlay(fit) {
 }
 
 function renderLayer(concentration, index, fit, samples, options = {}) {
-  const vertices = [
-    screenFor(makePoint(100, 0, 0), index, fit),
-    screenFor(makePoint(0, 100, 0), index, fit),
-    screenFor(makePoint(0, 0, 100), index, fit),
-  ];
+  const vertices = layerScreenVertices(index, fit);
   const averageDepth = vertices.reduce((sum, point) => sum + point.depth, 0) / vertices.length;
   const group = createSvgElement("g", {
     class: "ternary-layer",
@@ -2178,17 +2208,16 @@ function renderLayer(concentration, index, fit, samples, options = {}) {
     renderSamples(group, concentration, index, fit, samples);
   }
 
-  const minX = Math.min(...vertices.map((point) => point.x));
-  const minY = Math.min(...vertices.map((point) => point.y));
-  const maxY = Math.max(...vertices.map((point) => point.y));
-  const labelPoint = {
-    x: minX - 112,
-    y: (minY + maxY) / 2,
-  };
   if (state.showConcentrationLabels) {
-    svgConcentrationText(group, concentration, labelPoint, "layer-label", {
-      "text-anchor": "end",
-    });
+    svgConcentrationText(
+      group,
+      concentration,
+      concentrationLabelPointForLayer(vertices),
+      "layer-label",
+      {
+        "text-anchor": "end",
+      },
+    );
   }
 
   return group;

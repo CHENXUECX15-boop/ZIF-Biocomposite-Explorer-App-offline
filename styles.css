@@ -231,6 +231,12 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.dataset-tabs,
+.mode-tabs,
+.metric-tabs,
+.composition-search {
   padding: 5px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -426,9 +432,15 @@ h2 {
   font-weight: 760;
 }
 
+.composition-search-section {
+  display: grid;
+  gap: 10px;
+}
+
 .composition-search {
   display: grid;
   gap: 8px;
+  background: var(--surface);
 }
 
 .composition-search-clear {

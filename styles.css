@@ -318,11 +318,7 @@ h2 {
   grid-template-rows: auto minmax(760px, 1fr);
   min-width: 0;
   overflow: hidden;
-  background:
-    linear-gradient(90deg, rgba(221, 221, 221, 0.42) 1px, transparent 1px),
-    linear-gradient(rgba(221, 221, 221, 0.38) 1px, transparent 1px),
-    #ffffff;
-  background-size: 38px 38px;
+  background: #ffffff;
 }
 
 .controls-panel {
@@ -1020,11 +1016,7 @@ h2 {
   height: auto;
   cursor: grab;
   isolation: isolate;
-  background:
-    linear-gradient(90deg, rgba(221, 221, 221, 0.42) 1px, transparent 1px),
-    linear-gradient(rgba(221, 221, 221, 0.38) 1px, transparent 1px),
-    #ffffff;
-  background-size: 38px 38px;
+  background: #ffffff;
 }
 
 .plot-frame::before {
@@ -1032,11 +1024,7 @@ h2 {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background:
-    linear-gradient(90deg, rgba(221, 221, 221, 0.42) 1px, transparent 1px),
-    linear-gradient(rgba(221, 221, 221, 0.38) 1px, transparent 1px),
-    #ffffff;
-  background-size: 38px 38px;
+  background: #ffffff;
 }
 
 .plot-frame.is-dragging {
@@ -1064,12 +1052,6 @@ h2 {
 
 .plot-grid-fill {
   fill: #ffffff;
-}
-
-.plot-grid-line {
-  stroke: rgba(221, 221, 221, 0.42);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
 }
 
 .view-gizmo {
@@ -1894,11 +1876,7 @@ body.is-page-capturing .phase-table-scroll-hint {
 .visual-surface,
 .plot-frame,
 .plot-frame::before {
-  background:
-    linear-gradient(90deg, rgba(221, 221, 221, 0.42) 1px, transparent 1px),
-    linear-gradient(rgba(221, 221, 221, 0.38) 1px, transparent 1px),
-    #ffffff;
-  background-size: 38px 38px;
+  background: #ffffff;
 }
 
 .dataset-tabs,
@@ -2000,10 +1978,6 @@ input[type="range"] {
 .plot-grid-fill,
 .xrd-plot-bg {
   fill: #ffffff;
-}
-
-.plot-grid-line {
-  stroke: rgba(221, 221, 221, 0.42);
 }
 
 .phase-result {

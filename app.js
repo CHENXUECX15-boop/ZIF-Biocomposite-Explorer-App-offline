@@ -2228,7 +2228,6 @@ function renderPlotBackground() {
     class: "plot-grid-bg",
     "aria-hidden": "true",
   });
-  const step = 38;
 
   group.append(
     createSvgElement("rect", {
@@ -2239,30 +2238,6 @@ function renderPlotBackground() {
       height: plot.height,
     }),
   );
-
-  for (let x = 0; x <= plot.width; x += step) {
-    group.append(
-      createSvgElement("line", {
-        class: "plot-grid-line",
-        x1: x,
-        y1: 0,
-        x2: x,
-        y2: plot.height,
-      }),
-    );
-  }
-
-  for (let y = 0; y <= plot.height; y += step) {
-    group.append(
-      createSvgElement("line", {
-        class: "plot-grid-line",
-        x1: 0,
-        y1: y,
-        x2: plot.width,
-        y2: y,
-      }),
-    );
-  }
 
   return group;
 }

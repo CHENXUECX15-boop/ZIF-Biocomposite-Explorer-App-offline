@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline_ZIF-BEA</title>
+    <link rel="stylesheet" href="styles.css?v=20260602-toolbar-width-tight" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="title-row">
+        <h1>ZIF Biocomposite Explorer App - Offline Version</h1>
+        <a
+          class="ptc-logo-link"
+          href="https://www.tugraz.at/institute/ptc/home"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open PTC Institute homepage"
+        >
+          <span class="ptc-logo-lockup">
+            <img
+              class="ptc-logo-image"
+              src="PTC.png?v=20260529"
+              width="2023"
+              height="530"
+              alt="PTC Institute of Physical and Theoretical Chemistry"
+            />
+          </span>
+          <span class="ptc-university-text" aria-label="TU Graz, Graz University of Technology">
+            <span class="ptc-university-short">TU Graz</span>
+            <span>Graz University of Technology</span>
+          </span>
+        </a>
+      </div>
+      <button id="downloadPagePng" class="tool-button primary page-download-button" type="button">
+        Download Page PNG
+      </button>
+    </header>
+
+    <main class="app-shell">
+      <aside class="controls-panel" aria-label="Display controls">
+        <section class="control-section composition-search-section" aria-label="Composition search">
+          <h2>Search</h2>
+          <div class="composition-search" id="compositionSearch" aria-label="Composition search">
+            <div class="composition-search-fields">
+              <label>
+                <span>M</span>
+                <input id="searchM" type="number" min="0" max="100" step="1" inputmode="numeric" data-search-key="M" />
+              </label>
+              <label>
+                <span>L</span>
+                <input id="searchL" type="number" min="0" max="100" step="1" inputmode="numeric" data-search-key="L" />
+              </label>
+              <label>
+                <span>BSA</span>
+                <input id="searchBSA" type="number" min="0" max="100" step="1" inputmode="numeric" data-search-key="BSA" />
+              </label>
+            </div>
+            <label class="composition-search-concentration">
+              <span>Conc.</span>
+              <input id="searchConcentration" type="number" min="12.5" max="100" step="1" inputmode="decimal" />
+            </label>
+            <div class="composition-search-foot">
+              <output class="composition-search-status" id="searchStatus" aria-live="polite"></output>
+              <button class="composition-search-clear" id="clearSearchPoint" type="button">Clear</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <h2>Dataset</h2>
+          <div class="dataset-tabs" aria-label="Dataset">
+            <button class="dataset-tab is-active" type="button" data-dataset="WW">TD-H<sub>2</sub>O</button>
+            <button class="dataset-tab" type="button" data-dataset="EW">TD-EtOH</button>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <h2>Concentration</h2>
+          <div class="filter-group" id="concentrationFilters" aria-label="Concentration filter"></div>
+        </section>
+
+        <section class="control-section">
+          <h2>Visualization</h2>
+          <div class="metric-tabs" id="visualizationFilters" aria-label="Visualization mode">
+            <button class="metric-tab is-active" type="button" data-visualization="phase">Phase</button>
+            <button class="metric-tab" type="button" data-visualization="EE">EE%</button>
+            <button class="metric-tab" type="button" data-visualization="LC">LC%</button>
+            <button class="metric-tab" type="button" data-visualization="IR">IR-ratio [%]</button>
+            <button class="metric-tab" type="button" data-visualization="AF">Amorphous fraction [%]</button>
+            <button class="metric-tab" type="button" data-visualization="FRAMEWORK">Framework to amorphous ratio</button>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <h2>Phase</h2>
+          <div class="filter-group" id="phaseFilters" aria-label="Phase filter"></div>
+        </section>
+
+        <section class="control-section">
+          <h2>Filters</h2>
+          <div class="range-filter-grid" id="valueFilters" aria-label="M, L, BSA, EE, LC, IR-ratio, and amorphous fraction filters">
+            <label class="range-filter">
+              <span>M (wt.%)</span>
+              <span class="range-fields">
+                <input type="number" min="0" max="100" step="1" value="0" data-filter-key="M" data-range-bound="min" />
+                <span>-</span>
+                <input type="number" min="0" max="100" step="1" value="100" data-filter-key="M" data-range-bound="max" />
+              </span>
+            </label>
+            <label class="range-filter">
+              <span>L (wt.%)</span>
+              <span class="range-fields">
+                <input type="number" min="0" max="100" step="1" value="0" data-filter-key="L" data-range-bound="min" />
+                <span>-</span>
+                <input type="number" min="0" max="100" step="1" value="100" data-filter-key="L" data-range-bound="max" />
+              </span>
+            </label>
+            <label class="range-filter">
+              <span>BSA (wt.%)</span>
+              <span class="range-fields">
+                <input type="number" min="0" max="100" step="1" value="0" data-filter-key="BSA" data-range-bound="min" />
+                <span>-</span>
+                <input type="number" min="0" max="100" step="1" value="100" data-filter-key="BSA" data-range-bound="max" />
+              </span>
+            </label>
+            <label class="range-filter">
+              <span>EE%</span>
+              <span class="range-fields">
+                <input type="number" min="0" max="100" step="0.1" value="0" data-filter-key="EE" data-range-bound="min" />
+                <span>-</span>
+                <input type="number" min="0" max="100" step="0.1" value="100" data-filter-key="EE" data-range-bound="max" />
+              </span>
+            </label>
+            <label class="range-filter">
+              <span>LC%</span>
+              <span class="range-fields">
+                <input type="number" min="0" max="100" step="0.1" value="0" data-filter-key="LC" data-range-bound="min" />
+                <span>-</span>
+                <input type="number" min="0" max="100" step="0.1" value="100" data-filter-key="LC" data-range-bound="max" />
+              </span>
+            </label>
+            <label class="range-filter">
+              <span>IR-ratio [%]</span>
+              <span class="range-fields">
+                <input type="number" min="0" max="100" step="0.1" value="0" data-filter-key="IR" data-range-bound="min" />
+                <span>-</span>
+                <input type="number" min="0" max="100" step="0.1" value="100" data-filter-key="IR" data-range-bound="max" />
+              </span>
+            </label>
+            <label class="range-filter">
+              <span>Amorphous fraction [%]</span>
+              <span class="range-fields">
+                <input type="number" min="0" max="100" step="0.1" value="0" data-filter-key="AF" data-range-bound="min" />
+                <span>-</span>
+                <input type="number" min="0" max="100" step="0.1" value="100" data-filter-key="AF" data-range-bound="max" />
+              </span>
+            </label>
+          </div>
+          <button id="resetValueFilters" class="filter-reset" type="button">Reset filters</button>
+        </section>
+
+        <section class="control-section glossary-section" aria-label="Glossary">
+          <h2>Glossary</h2>
+          <dl class="glossary-list">
+            <div class="glossary-group">
+              <dt>Composition</dt>
+              <dd><strong>L</strong>: 2-methylimidazole (HmIM)</dd>
+              <dd><strong>M</strong>: Zn(OAc)<sub>2</sub>&middot;2H<sub>2</sub>O</dd>
+              <dd><strong>BSA</strong>: Bovine serum albumin</dd>
+            </div>
+            <div class="glossary-group">
+              <dt>Washing</dt>
+              <dd><strong>TD-H<sub>2</sub>O</strong>: deionized water washing only</dd>
+              <dd><strong>TD-EtOH</strong>: deionized water washing followed by ethanol washing</dd>
+            </div>
+            <div class="glossary-group">
+              <dt>Phase</dt>
+              <dd><strong>ZIF-C</strong>: Zn<sub>2</sub>(mIM)<sub>2</sub>CO<sub>3</sub></dd>
+              <dd><strong>sod</strong>: sodalite, Zn(mIM)<sub>2</sub></dd>
+              <dd><strong>dia</strong>: diamondoid, Zn(mIM)<sub>2</sub></dd>
+            </div>
+            <div class="glossary-group">
+              <dt>Characterization</dt>
+              <dd><strong>PXRD</strong>: Powder X-ray diffraction</dd>
+              <dd><strong>ATR-IR</strong>: Attenuated total reflection infrared spectroscopy</dd>
+            </div>
+            <div class="glossary-group">
+              <dt>Property</dt>
+              <dd><strong>EE</strong>: Encapsulation efficiency</dd>
+              <dd><strong>LC</strong>: Loading capacity</dd>
+              <dd><strong>IR-ratio</strong>: ATR-IR band ratio</dd>
+            </div>
+          </dl>
+        </section>
+      </aside>
+
+      <section class="visual-surface" aria-label="Stacked ternary plot">
+        <div class="plot-toolbar">
+          <div class="toolbar-left">
+            <div class="display-options" aria-label="Display options">
+              <label class="display-toggle">
+                <input id="sampleNumberToggle" type="checkbox" checked />
+                <span>Sample numbers</span>
+              </label>
+              <label class="display-toggle">
+                <input id="concentrationLabelToggle" type="checkbox" checked />
+                <span>Concentrations</span>
+              </label>
+              <label class="display-toggle">
+                <input id="axisLabelToggle" type="checkbox" checked />
+                <span>Axis labels</span>
+              </label>
+              <label class="display-toggle">
+                <input id="axisTickToggle" type="checkbox" checked />
+                <span>Axis numbers</span>
+              </label>
+            </div>
+            <div class="font-size-controls" aria-label="Font size controls">
+              <label class="font-size-control">
+                <span>Concentration size</span>
+                <select id="concentrationFontScale">
+                  <option value="0.5">-1x</option>
+                  <option value="0.75">-0.5x</option>
+                  <option value="1" selected>1x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                  <option value="2.5">2.5x</option>
+                  <option value="3">3x</option>
+                </select>
+              </label>
+              <label class="font-size-control">
+                <span>Axis number size</span>
+                <select id="axisTickFontScale">
+                  <option value="0.5">-1x</option>
+                  <option value="0.75">-0.5x</option>
+                  <option value="1" selected>1x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                  <option value="2.5">2.5x</option>
+                  <option value="3">3x</option>
+                </select>
+              </label>
+              <label class="font-size-control">
+                <span>Axis label size</span>
+                <select id="axisLabelFontScale">
+                  <option value="0.5">-1x</option>
+                  <option value="0.75">-0.5x</option>
+                  <option value="1" selected>1x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                  <option value="2.5">2.5x</option>
+                  <option value="3">3x</option>
+                </select>
+              </label>
+              <label class="font-size-control">
+                <span>Sample circle size</span>
+                <select id="sampleCircleSizeLevel">
+                  <option value="0.5">-1x</option>
+                  <option value="0.75">-0.5x</option>
+                  <option value="1" selected>1x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                  <option value="2.5">2.5x</option>
+                  <option value="3">3x</option>
+                </select>
+              </label>
+              <label class="font-size-control">
+                <span>Sample number size</span>
+                <select id="sampleNumberSizeLevel">
+                  <option value="0.5">-1x</option>
+                  <option value="0.75">-0.5x</option>
+                  <option value="1" selected>1x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                  <option value="2.5">2.5x</option>
+                  <option value="3">3x</option>
+                </select>
+              </label>
+              <label class="font-size-control">
+                <span>Legend size</span>
+                <select id="legendFontScale">
+                  <option value="0.5">-1x</option>
+                  <option value="0.75">-0.5x</option>
+                  <option value="1" selected>1x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                  <option value="2.5">2.5x</option>
+                  <option value="3">3x</option>
+                </select>
+              </label>
+            </div>
+            <div class="legend" id="legend" aria-label="Phase legend"></div>
+          </div>
+          <div class="figure-controls">
+            <div class="figure-actions">
+              <button id="resetView" class="tool-button" type="button">Reset View</button>
+              <button id="downloadPng" class="tool-button primary" type="button">Download PNG</button>
+            </div>
+            <div class="navigation-toolbar" aria-label="Navigation controls">
+              <div class="mode-tabs" aria-label="Drag mode">
+                <button class="mode-tab is-active" type="button" data-drag-mode="rotate">Rotate</button>
+                <button class="mode-tab" type="button" data-drag-mode="pan">Pan</button>
+              </div>
+              <label class="layer-spacing-control">
+                <span class="layer-spacing-head">
+                  <span>Layer spacing</span>
+                  <input
+                    id="layerGapNumber"
+                    class="layer-spacing-number"
+                    type="number"
+                    min="130"
+                    max="285"
+                    step="1"
+                    value="200"
+                    aria-label="Layer spacing value"
+                  />
+                </span>
+                <input id="layerGapControl" type="range" min="130" max="285" step="1" value="200" />
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="plot-frame">
+          <svg id="ternaryStack" role="img" aria-label="Five stacked ternary phase layers"></svg>
+          <div class="phase-legend-dock is-hidden" id="phaseLegendDock" aria-label="Visualization legend"></div>
+          <div class="view-gizmo" aria-label="View and zoom controls">
+            <div class="gizmo-row">
+              <button class="gizmo-axis x-axis" type="button" data-view="x" title="Side view">X</button>
+              <button class="gizmo-axis y-axis" type="button" data-view="y" title="Front view">Y</button>
+            </div>
+            <div class="gizmo-row">
+              <button class="gizmo-axis z-axis" type="button" data-view="z" title="Top view">Z</button>
+              <button class="gizmo-axis l-axis" type="button" data-view="l" title="L direction">L</button>
+            </div>
+            <div class="gizmo-zoom">
+              <button id="zoomIn" type="button" title="Zoom in">+</button>
+              <button id="zoomOut" type="button" title="Zoom out">-</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="detail-panel" aria-label="Selected sample phase result">
+        <div class="detail-summary-card">
+          <div class="detail-heading">
+            <div class="detail-heading-meta">
+              <p class="eyebrow" id="detailDataset">TD-H<sub>2</sub>O</p>
+              <p class="detail-heading-concentration" id="detailHeaderConcentration">100 mg mL<sup>-1</sup></p>
+            </div>
+            <h2 id="detailTitle">Sample 34</h2>
+          </div>
+
+          <div class="phase-result">
+            <span id="selectedConcentration">100 mg mL<sup>-1</sup></span>
+            <strong id="selectedPhase">-</strong>
+          </div>
+        </div>
+
+        <dl class="composition-grid">
+          <div>
+            <dt>M (wt.%)</dt>
+            <dd id="detailM">-</dd>
+          </div>
+          <div>
+            <dt>L (wt.%)</dt>
+            <dd id="detailL">-</dd>
+          </div>
+          <div>
+            <dt>BSA (wt.%)</dt>
+            <dd id="detailBSA">-</dd>
+          </div>
+          <div>
+            <dt>L/M mass ratio</dt>
+            <dd id="detailRatio">-</dd>
+          </div>
+          <div>
+            <dt>EE +/-</dt>
+            <dd id="detailEE">-</dd>
+          </div>
+          <div>
+            <dt>LC</dt>
+            <dd id="detailLC">-</dd>
+          </div>
+          <div>
+            <dt>IR-ratio</dt>
+            <dd id="detailIR">-</dd>
+          </div>
+          <div>
+            <dt>Amorphous fraction +/-</dt>
+            <dd id="detailAF">-</dd>
+          </div>
+          <div class="wide-metric framework-detail-card">
+            <dt>Framework to amorphous ratio</dt>
+            <dd id="detailFramework" class="framework-detail">-</dd>
+          </div>
+        </dl>
+
+        <div class="phase-table-wrap">
+          <table class="phase-table">
+            <thead>
+              <tr>
+                <th>Total concentration</th>
+                <th>Phase</th>
+                <th>Framework to amorphous ratio</th>
+                <th>EE</th>
+                <th>LC</th>
+                <th>IR-ratio</th>
+                <th>Amorphous fraction</th>
+              </tr>
+            </thead>
+            <tbody id="phaseRows"></tbody>
+          </table>
+          <div class="phase-table-scroll-hint" aria-hidden="true"></div>
+        </div>
+
+        <section class="xrd-panel" aria-label="Selected sample PXRD patterns">
+          <div class="xrd-heading">
+            <h3>PXRD patterns</h3>
+            <div class="spectrum-toolbar">
+              <span id="xrdStatus">-</span>
+              <button id="xrdDownloadCsv" class="spectrum-button" type="button" title="Download PXRD CSV">CSV</button>
+              <button id="xrdDownloadPng" class="spectrum-button" type="button" title="Download PXRD PNG">PNG</button>
+              <button id="xrdReset" class="spectrum-button" type="button" title="Reset PXRD zoom and pan">Reset</button>
+              <button id="xrdZoomOut" class="spectrum-button icon-button" type="button" title="PXRD zoom out">-</button>
+              <button id="xrdZoomIn" class="spectrum-button icon-button" type="button" title="PXRD zoom in">+</button>
+            </div>
+          </div>
+          <svg id="xrdPlot" role="img" aria-label="Triplicate PXRD patterns"></svg>
+          <div class="xrd-legend" id="xrdLegend"></div>
+        </section>
+
+        <section class="xrd-panel ir-panel" aria-label="Selected sample ATR-IR spectrum">
+          <div class="xrd-heading">
+            <h3>ATR-IR spectrum</h3>
+            <div class="spectrum-toolbar">
+              <span id="irStatus">-</span>
+              <button id="irDownloadCsv" class="spectrum-button" type="button" title="Download ATR-IR CSV">CSV</button>
+              <button id="irDownloadPng" class="spectrum-button" type="button" title="Download ATR-IR PNG">PNG</button>
+              <button id="irReset" class="spectrum-button" type="button" title="Reset ATR-IR zoom and pan">Reset</button>
+              <button id="irZoomOut" class="spectrum-button icon-button" type="button" title="ATR-IR zoom out">-</button>
+              <button id="irZoomIn" class="spectrum-button icon-button" type="button" title="ATR-IR zoom in">+</button>
+            </div>
+          </div>
+          <svg id="irPlot" role="img" aria-label="Selected sample ATR-IR spectrum"></svg>
+        </section>
+      </aside>
+    </main>
+
+    <script src="data/phase-data.js"></script>
+    <script src="data/metrics-data.js"></script>
+    <script src="data/framework-data.js?v=20260601-crystalline-zif-label"></script>
+    <script src="data/ir-ratio-data.js"></script>
+    <script src="data/amorphous-fraction-data.js"></script>
+    <script src="data/xrd-data.js"></script>
+    <script src="data/ir-data.js"></script>
+    <script src="ptc-logo-data.js?v=20260531-logo"></script>
+    <script src="vendor/html2canvas.min.js"></script>
+    <script src="app.js?v=20260611-search-conc-empty"></script>
+  </body>
+</html>

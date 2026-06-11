@@ -234,7 +234,7 @@ const defaultSearchPoint = Object.freeze({
   M: "",
   L: "",
   BSA: "",
-  concentration: "25",
+  concentration: "",
   autoKey: null,
 });
 
@@ -2154,6 +2154,11 @@ function renderSearchOverlay(fit) {
     group.append(
       createSvgElement("polygon", {
         class: "search-layer-plane",
+        fill: "#ffbf2f",
+        "fill-opacity": "0.1",
+        stroke: "#c42032",
+        "stroke-dasharray": "8 6",
+        "stroke-width": "1.8",
         points: pointsAttribute(vertices),
       }),
     );
@@ -3308,10 +3313,7 @@ function updateSearchPointFromControls(changedKey = null) {
 function clearSearchPoint() {
   state = {
     ...state,
-    searchPoint: {
-      ...defaultSearchPoint,
-      concentration: state.searchPoint.concentration || defaultSearchPoint.concentration,
-    },
+    searchPoint: { ...defaultSearchPoint },
   };
   updateControlStates();
   renderPlot();
@@ -3454,6 +3456,12 @@ function exportStyles() {
     .layer-grid { stroke: rgba(124, 117, 103, 0.28); stroke-width: 0.9; }
     .layer-edge { stroke: rgba(29, 37, 40, 0.58); stroke-width: 1; }
     .layer-label { fill: #000000; font-size: ${layerLabelSize}px; font-weight: 760; }
+    .search-layer-plane { fill: #ffbf2f; fill-opacity: 0.1; stroke: #c42032; stroke-dasharray: 8 6; stroke-width: 1.8; }
+    .search-layer-label { fill: #c42032; }
+    .composition-search-marker .search-marker-halo { fill: #ffffff; fill-opacity: 0.92; stroke: #1d2528; stroke-width: 2.2; }
+    .composition-search-marker .search-marker-core { fill: #ffbf2f; stroke: #c42032; stroke-width: 2; }
+    .composition-search-marker .search-marker-cross { stroke: #c42032; stroke-width: 2.2; stroke-linecap: round; }
+    .composition-search-marker .search-marker-label { fill: #1d2528; font-size: 13px; font-weight: 850; paint-order: stroke fill; stroke: #ffffff; stroke-linejoin: round; stroke-width: 3px; }
     .axis-label { fill: #000000; font-size: ${axisLabelSize}px; font-weight: 780; }
     .tick-label { fill: #000000; font-size: ${tickLabelSize}px; font-weight: 720; }
     .sample-hit { fill: transparent; }
@@ -3477,7 +3485,7 @@ function exportStyles() {
 function exportContentBottom(svgNode = els.svg) {
   let bottom = 0;
 
-  svgNode?.querySelectorAll(".layer-plane, .plot-grid-fill").forEach((node) => {
+  svgNode?.querySelectorAll(".layer-plane, .search-layer-plane, .plot-grid-fill").forEach((node) => {
     const points = String(node.getAttribute("points") || "")
       .trim()
       .split(/\s+/)
@@ -3624,10 +3632,17 @@ function exportContentBounds(svgNode = els.svg) {
     ".sample-dot",
     ".sample-ring",
     ".layer-plane",
+    ".search-layer-plane",
     ".layer-shadow",
     ".layer-grid",
     ".layer-edge",
     ".layer-label",
+    ".search-layer-label",
+    ".composition-search-marker",
+    ".search-marker-halo",
+    ".search-marker-core",
+    ".search-marker-cross",
+    ".search-marker-label",
     ".axis-label",
     ".tick-label",
   ].join(", ");

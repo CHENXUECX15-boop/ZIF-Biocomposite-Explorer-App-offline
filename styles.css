@@ -227,7 +227,8 @@ h2 {
 
 .dataset-tabs,
 .mode-tabs,
-.metric-tabs {
+.metric-tabs,
+.plot-style-tabs {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -236,6 +237,7 @@ h2 {
 .dataset-tabs,
 .mode-tabs,
 .metric-tabs,
+.plot-style-tabs,
 .composition-search {
   padding: 5px;
   border: 1px solid var(--line);
@@ -275,6 +277,7 @@ h2 {
 .dataset-tab,
 .mode-tab,
 .metric-tab,
+.plot-toolbar .plot-style-tab,
 .filter-button {
   min-width: 64px;
   border: 0;
@@ -292,6 +295,7 @@ h2 {
 .dataset-tab.is-active,
 .mode-tab.is-active,
 .metric-tab.is-active,
+.plot-toolbar .plot-style-tab.is-active,
 .filter-button.is-active {
   background: var(--ink);
   color: #ffffff;
@@ -701,6 +705,22 @@ h2 {
   width: var(--toolbar-control-grid-width);
 }
 
+.plot-style-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: var(--toolbar-control-grid-width);
+}
+
+.plot-toolbar .plot-style-tab {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
 .plot-toolbar .display-toggle {
   justify-content: flex-start;
   min-height: 30px;
@@ -1072,14 +1092,16 @@ h2 {
 }
 
 .gizmo-row,
-.gizmo-zoom {
+.gizmo-zoom,
+.gizmo-style-tabs {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
 .gizmo-axis,
-.gizmo-zoom button {
+.gizmo-zoom button,
+.gizmo-style-tabs .plot-style-icon {
   display: inline-grid;
   place-items: center;
   width: 30px;
@@ -1112,6 +1134,42 @@ h2 {
   margin-top: 2px;
 }
 
+.gizmo-style-tabs {
+  margin-top: 2px;
+}
+
+.gizmo-style-tabs .plot-style-icon {
+  min-width: 0;
+  padding: 0;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.gizmo-style-tabs .plot-style-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.gizmo-style-tabs .plot-style-icon circle,
+.gizmo-style-tabs .plot-style-icon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gizmo-style-tabs .plot-style-icon circle,
+.gizmo-style-tabs .plot-style-icon.is-active path:first-child {
+  fill: currentColor;
+}
+
+.gizmo-style-tabs .plot-style-icon.is-active {
+  background: var(--ink);
+  color: #ffffff;
+}
+
 .gizmo-zoom button {
   background: #ffffff;
   color: var(--ink);
@@ -1136,6 +1194,16 @@ h2 {
 .layer-edge {
   stroke: rgba(29, 37, 40, 0.58);
   stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.boundary-cells {
+  pointer-events: none;
+}
+
+.boundary-cell {
+  stroke: rgba(84, 84, 84, 0.46);
+  stroke-width: 0.85;
   vector-effect: non-scaling-stroke;
 }
 
@@ -1896,6 +1964,7 @@ body.is-page-capturing .phase-table-scroll-hint {
 .dataset-tab,
 .mode-tab,
 .metric-tab,
+.plot-toolbar .plot-style-tab,
 .filter-button {
   border-radius: 4px;
   color: #555555;
@@ -1904,6 +1973,7 @@ body.is-page-capturing .phase-table-scroll-hint {
 .dataset-tab.is-active,
 .mode-tab.is-active,
 .metric-tab.is-active,
+.plot-toolbar .plot-style-tab.is-active,
 .filter-button.is-active {
   background: #333333;
   color: #ffffff;

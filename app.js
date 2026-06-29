@@ -164,6 +164,7 @@ const valueFilterLabels = {
 
 const fontScaleOptions = [0.5, 0.75, 1, 1.5, 2, 2.5, 3];
 const sampleSizeLevels = fontScaleOptions;
+const plotStyleOptions = new Set(["points", "boundary"]);
 
 const defaultValueFilters = Object.freeze({
   M: Object.freeze({ min: 0, max: 100 }),
@@ -246,6 +247,7 @@ let state = {
   visibleConcentration: "all",
   phaseFilter: "all",
   visualization: "phase",
+  plotStyle: "points",
   showSampleNumbers: true,
   showConcentrationLabels: true,
   showAxisLabels: true,
@@ -281,6 +283,7 @@ const els = {
   tabs: Array.from(document.querySelectorAll(".dataset-tab")),
   concentrationFilters: document.getElementById("concentrationFilters"),
   visualizationFilters: document.getElementById("visualizationFilters"),
+  plotStyleTabs: Array.from(document.querySelectorAll("[data-plot-style]")),
   sampleNumberToggle: document.getElementById("sampleNumberToggle"),
   concentrationLabelToggle: document.getElementById("concentrationLabelToggle"),
   axisLabelToggle: document.getElementById("axisLabelToggle"),
@@ -2004,6 +2007,607 @@ function createSampleBallNodes(point, radius, sample, concentration, phase, stat
   return createMetricBallNodes(point, radius, sample, concentration);
 }
 
+function boundaryModeActive() {
+  return state.plotStyle === "boundary";
+}
+
+function boundarySamplesFor(concentration, samples) {
+  return samples.filter(
+    (sample) => phaseMatches(sample.phases[concentration]) && valueFiltersMatch(sample, concentration),
+  );
+}
+
+function boundaryDomainSamplesFor(concentration, samples) {
+  return samples.filter((sample) => valueFiltersMatch(sample, concentration));
+}
+
+
+
+
+function boundaryCompositionStep(samples) {
+  const values = samples.flatMap((sample) => [Number(sample.M), Number(sample.L), Number(sample.BSA)]);
+  const sorted = Array.from(new Set(values.filter(Number.isFinite))).sort((a, b) => a - b);
+  const diffs = sorted
+    .slice(1)
+    .map((value, index) => value - sorted[index])
+    .filter((value) => value > 0.001);
+  return diffs.length ? Math.min(...diffs) : 10;
+}
+
+function boundaryGridStep(samples) {
+  const sampleStep = boundaryCompositionStep(samples);
+  const divisions = clamp(Math.round(100 / Math.max(sampleStep / 2, 1)), 1, 60);
+  return 100 / divisions;
+}
+
+function boundaryRoundValue(value) {
+  return Number(value.toFixed(6));
+}
+
+function boundaryCompositionPoint(m, l, bsa) {
+  return {
+    M: boundaryRoundValue(m),
+    L: boundaryRoundValue(l),
+    BSA: boundaryRoundValue(bsa),
+  };
+}
+
+function boundaryTriangleCompositions(samples) {
+  const step = boundaryGridStep(samples);
+  const divisions = Math.round(100 / step);
+  const triangles = [];
+
+  for (let mIndex = 0; mIndex < divisions; mIndex += 1) {
+    for (let lIndex = 0; lIndex < divisions - mIndex; lIndex += 1) {
+      const m = mIndex * step;
+      const l = lIndex * step;
+      const bsa = 100 - m - l;
+      const left = boundaryCompositionPoint(m, l, bsa);
+      const right = boundaryCompositionPoint(m + step, l, bsa - step);
+      const top = boundaryCompositionPoint(m, l + step, bsa - step);
+
+      triangles.push([left, right, top]);
+
+      if (mIndex + lIndex < divisions - 1) {
+        triangles.push([
+          right,
+          boundaryCompositionPoint(m + step, l + step, bsa - step * 2),
+          top,
+        ]);
+      }
+    }
+  }
+
+  return triangles;
+}
+
+function boundaryTriangleCentroid(triangle) {
+  return triangle.reduce(
+    (sum, point) => ({
+      M: sum.M + point.M / triangle.length,
+      L: sum.L + point.L / triangle.length,
+      BSA: sum.BSA + point.BSA / triangle.length,
+    }),
+    { M: 0, L: 0, BSA: 0 },
+  );
+}
+
+function boundaryNearestSample(triangle, samplePositions) {
+  const centroid = localForComposition(boundaryTriangleCentroid(triangle));
+  return samplePositions.reduce((nearest, item) => {
+    const dx = centroid.x - item.point.x;
+    const dy = centroid.y - item.point.y;
+    const distance = dx * dx + dy * dy;
+    if (!nearest || distance < nearest.distance - 0.000001) {
+      return { ...item, distance };
+    }
+    return nearest;
+  }, null)?.sample || null;
+}
+
+function boundaryAverageMetricColor(samples, concentration) {
+  const values = samples
+    .map((sample) => metricValue(state.visualization, sample, concentration))
+    .filter((value) => Number.isFinite(value));
+  if (values.length !== samples.length) {
+    return metricPalettes[state.visualization]?.missing || palette.missing;
+  }
+  return colorForMetric(
+    state.visualization,
+    values.reduce((sum, value) => sum + value, 0) / values.length,
+  );
+}
+
+function boundaryFrameworkColor(samples, concentration) {
+  const totals = new Map();
+  samples.forEach((sample) => {
+    frameworkSegments(frameworkEntry(sample, concentration)).forEach((segment) => {
+      const current = totals.get(segment.key) || { key: segment.key, color: segment.color, value: 0 };
+      current.value += Number(segment.value) || 0;
+      totals.set(segment.key, current);
+    });
+  });
+  const segments = Array.from(totals.values());
+  if (!segments.length) return palette.missing;
+  return segments.reduce((best, segment) => (segment.value > best.value ? segment : best), segments[0]).color;
+}
+
+function boundaryFillForSamples(samples, concentration) {
+  if (state.visualization === frameworkModeKey) {
+    return boundaryFrameworkColor(samples, concentration);
+  }
+  if (state.visualization !== "phase") {
+    return boundaryAverageMetricColor(samples, concentration);
+  }
+  return colorForPhase(samples[0]?.phases?.[concentration]);
+}
+
+function boundaryPhaseComponentsForSample(sample, concentration) {
+  if (state.visualization !== "phase") return [];
+  return phaseColorComponents(sample?.phases?.[concentration], phaseStatsFor(sample, concentration));
+}
+
+function boundaryAppendTriangle(group, triangle, fill, opacity, sample) {
+  group.append(
+    createSvgElement("polygon", {
+      class: "boundary-cell boundary-triangle-cell",
+      points: pointsAttribute(triangle.local.map((point) => screenFor(point, triangle.index, triangle.fit))),
+      fill,
+      "fill-opacity": opacity,
+      "data-samples": String(sample.sample),
+    }),
+  );
+}
+
+function boundaryMixedComponentCounts(components, triangleCount) {
+  if (!triangleCount) return [];
+  const ordered = components
+    .filter((component) => Number.isFinite(component.fraction) && component.fraction > 0)
+    .map((component) => ({
+      component,
+      minimum: component.fraction < 0.2 && triangleCount > 1 ? 1 : 0,
+      count: Math.round(component.fraction * triangleCount),
+    }));
+
+  if (!ordered.length) return [];
+
+  ordered.forEach((item) => {
+    item.count = Math.max(item.minimum, item.count);
+    if (triangleCount >= ordered.length) {
+      item.count = Math.max(1, item.count);
+    }
+  });
+
+  let total = ordered.reduce((sum, item) => sum + item.count, 0);
+  while (total > triangleCount) {
+    const candidate = ordered
+      .filter((item) => item.count > Math.max(item.minimum, triangleCount >= ordered.length ? 1 : 0))
+      .sort((a, b) => b.count - a.count || b.component.fraction - a.component.fraction)[0];
+    if (!candidate) break;
+    candidate.count -= 1;
+    total -= 1;
+  }
+
+  while (total < triangleCount) {
+    const candidate = ordered
+      .slice()
+      .sort((a, b) => b.component.fraction - a.component.fraction || b.count - a.count)[0];
+    candidate.count += 1;
+    total += 1;
+  }
+
+  return ordered;
+}
+
+function boundaryComponentSignature(components) {
+  return components
+    .map((component) => component.key)
+    .sort()
+    .join("+");
+}
+
+function boundaryAveragePoint(items) {
+  const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
+  if (totalWeight <= 0) return null;
+  return {
+    x: items.reduce((sum, item) => sum + item.point.x * item.weight, 0) / totalWeight,
+    y: items.reduce((sum, item) => sum + item.point.y * item.weight, 0) / totalWeight,
+  };
+}
+
+function boundaryComponentAttractors(samples, concentration) {
+  const pure = new Map();
+  const mixed = new Map();
+  samples.forEach((sample) => {
+    const point = localForComposition(sample);
+    const components = boundaryPhaseComponentsForSample(sample, concentration);
+    if (components.length > 1) {
+      components.forEach((component) => {
+        if (!mixed.has(component.key)) mixed.set(component.key, []);
+        mixed.get(component.key).push({ point, weight: component.fraction });
+      });
+      return;
+    }
+
+    const key = normalizePhase(sample.phases?.[concentration]);
+    if (key === "missing" || key === "mixed" || key === "other") return;
+    if (!pure.has(key)) pure.set(key, []);
+    pure.get(key).push({ point, weight: 1 });
+  });
+
+  const keys = new Set([...pure.keys(), ...mixed.keys()]);
+  return Array.from(keys).reduce((attractors, key) => {
+    attractors.set(key, boundaryAveragePoint(pure.get(key) || []) || boundaryAveragePoint(mixed.get(key) || []));
+    return attractors;
+  }, new Map());
+}
+
+function boundaryPointDistanceSquared(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
+}
+
+function boundaryMixedRecordPoint(record) {
+  return localForComposition(record.sample);
+}
+
+function boundaryRecordHasComponent(record, component) {
+  return record.components.some((entry) => entry.key === component.key);
+}
+
+function boundaryRecordComponentPeer(record, component, records) {
+  const origin = boundaryMixedRecordPoint(record);
+  return records
+    .filter((item) => item !== record && boundaryRecordHasComponent(item, component))
+    .sort((a, b) => (
+      boundaryPointDistanceSquared(origin, boundaryMixedRecordPoint(a)) -
+      boundaryPointDistanceSquared(origin, boundaryMixedRecordPoint(b))
+    ))[0] || null;
+}
+
+function boundaryRecordComponentFocus(record, component, records, attractors) {
+  const peer = boundaryRecordComponentPeer(record, component, records);
+  return peer ? boundaryMixedRecordPoint(peer) : attractors.get(component.key);
+}
+
+function boundaryCellSharedVertexCount(cell, selected) {
+  if (!cell.vertices || !selected.vertices) return 0;
+  return cell.vertices.filter((vertex) => selected.vertices.includes(vertex)).length;
+}
+
+function boundaryCellsShareEdge(cell, selected) {
+  return boundaryCellSharedVertexCount(cell, selected) >= 2;
+}
+
+function boundaryClosestSelectedScore(cell, selectedCells) {
+  if (!selectedCells.length) return Infinity;
+  return selectedCells.reduce((best, selected) => {
+    const distance = boundaryPointDistanceSquared(cell.point, selected.point);
+    const sharedVertices = boundaryCellSharedVertexCount(cell, selected);
+    if (sharedVertices >= 2) return Math.min(best, -1000000 + distance * 0.001);
+    if (sharedVertices === 1) return Math.min(best, -100000 + distance * 0.001);
+    return Math.min(best, distance);
+  }, Infinity);
+}
+
+function boundaryCellComponentScore(cell, component, attractors, focus, selectedCells = []) {
+  const attractor = attractors.get(component.key);
+  const samplePoint = localForComposition(cell.sample);
+  const focusScore = focus ? boundaryPointDistanceSquared(cell.point, focus) : 0;
+  const attractorScore = attractor ? boundaryPointDistanceSquared(cell.point, attractor) : focusScore;
+  const sampleScore = samplePoint ? boundaryPointDistanceSquared(cell.point, samplePoint) : 0;
+  const connectionScore = boundaryClosestSelectedScore(cell, selectedCells);
+
+  if (selectedCells.length && Number.isFinite(connectionScore)) {
+    return connectionScore * 1.6 + focusScore * 0.18 + attractorScore * 0.12 + sampleScore * 0.08;
+  }
+  if (!focus && !attractor) return sampleScore * 0.04;
+  if (!focus) return attractorScore * 0.8 + sampleScore * 0.2;
+  return focusScore * 0.58 + attractorScore * 0.26 + sampleScore * 0.16;
+}
+
+function boundaryRecordComponentScore(record, component, attractors, records, selectedCells = []) {
+  if (!record.cells.length) return Infinity;
+  const focus = boundaryRecordComponentFocus(record, component, records, attractors);
+  return record.cells.reduce(
+    (sum, cell) => sum + boundaryCellComponentScore(cell, component, attractors, focus, selectedCells),
+    0,
+  ) / record.cells.length;
+}
+
+function boundaryRecordComponentCount(record, component) {
+  const item = record.counts.find((entry) => entry.component.key === component.key);
+  return item?.count || 0;
+}
+
+function boundaryRemainingComponentCount(record, component, remainingByRecord) {
+  return remainingByRecord.get(record)?.get(component.key) || 0;
+}
+
+function boundarySetRemainingComponentCount(record, component, remainingByRecord, value) {
+  const remaining = remainingByRecord.get(record);
+  if (remaining) remaining.set(component.key, Math.max(0, value));
+}
+
+function boundaryAvailableCells(record, assignedCells) {
+  return record.cells.filter((cell) => !assignedCells.has(cell));
+}
+
+function boundaryAssignComponentCell(group, record, cell, component, assignedCells, selectedCells, remainingByRecord, opacity) {
+  assignedCells.add(cell);
+  selectedCells.push(cell);
+  boundarySetRemainingComponentCount(
+    record,
+    component,
+    remainingByRecord,
+    boundaryRemainingComponentCount(record, component, remainingByRecord) - 1,
+  );
+  boundaryAppendTriangle(group, cell, component.color, opacity, record.sample);
+}
+
+function boundaryAdjacentPairScore(recordA, cellA, recordB, cellB, component, selectedCells, anchorCells, attractors, records) {
+  const focusA = boundaryRecordComponentFocus(recordA, component, records, attractors);
+  const focusB = boundaryRecordComponentFocus(recordB, component, records, attractors);
+  const pairScore = boundaryPointDistanceSquared(cellA.point, cellB.point) * 0.04;
+  const guideCells = selectedCells.length ? selectedCells : anchorCells;
+  const scoreA = boundaryCellComponentScore(cellA, component, attractors, focusA, guideCells);
+  const scoreB = boundaryCellComponentScore(cellB, component, attractors, focusB, selectedCells.concat(cellA));
+  return scoreA + scoreB + pairScore;
+}
+
+function boundaryFindBestAdjacentPair(records, component, assignedCells, selectedCells, anchorCells, remainingByRecord, attractors) {
+  let bestPair = null;
+  const candidates = records.filter(
+    (record) => boundaryRemainingComponentCount(record, component, remainingByRecord) > 0,
+  );
+
+  for (let aIndex = 0; aIndex < candidates.length; aIndex += 1) {
+    const recordA = candidates[aIndex];
+    const cellsA = boundaryAvailableCells(recordA, assignedCells);
+    if (!cellsA.length) continue;
+
+    for (let bIndex = aIndex + 1; bIndex < candidates.length; bIndex += 1) {
+      const recordB = candidates[bIndex];
+      const cellsB = boundaryAvailableCells(recordB, assignedCells);
+      if (!cellsB.length) continue;
+
+      cellsA.forEach((cellA) => {
+        cellsB.forEach((cellB) => {
+          if (!boundaryCellsShareEdge(cellA, cellB)) return;
+          const score = boundaryAdjacentPairScore(
+            recordA,
+            cellA,
+            recordB,
+            cellB,
+            component,
+            selectedCells,
+            anchorCells,
+            attractors,
+            records,
+          );
+          if (!bestPair || score < bestPair.score) {
+            bestPair = { recordA, cellA, recordB, cellB, score };
+          }
+        });
+      });
+    }
+  }
+
+  return bestPair;
+}
+
+function boundaryReserveConnectedPairs(group, records, component, assignedCells, selectedCells, anchorCells, remainingByRecord, attractors, opacity) {
+  while (true) {
+    const pair = boundaryFindBestAdjacentPair(
+      records,
+      component,
+      assignedCells,
+      selectedCells,
+      anchorCells,
+      remainingByRecord,
+      attractors,
+    );
+    if (!pair) break;
+    if (assignedCells.has(pair.cellA) || assignedCells.has(pair.cellB)) continue;
+    if (
+      boundaryRemainingComponentCount(pair.recordA, component, remainingByRecord) <= 0 ||
+      boundaryRemainingComponentCount(pair.recordB, component, remainingByRecord) <= 0
+    ) {
+      continue;
+    }
+
+    boundaryAssignComponentCell(group, pair.recordA, pair.cellA, component, assignedCells, selectedCells, remainingByRecord, opacity);
+    boundaryAssignComponentCell(group, pair.recordB, pair.cellB, component, assignedCells, selectedCells, remainingByRecord, opacity);
+  }
+}
+
+function boundaryFindBestComponentCell(records, component, assignedCells, selectedCells, anchorCells, remainingByRecord, attractors) {
+  let best = null;
+  const guideCells = selectedCells.length ? selectedCells : anchorCells;
+  records.forEach((record) => {
+    if (boundaryRemainingComponentCount(record, component, remainingByRecord) <= 0) return;
+    const focus = boundaryRecordComponentFocus(record, component, records, attractors);
+    boundaryAvailableCells(record, assignedCells).forEach((cell) => {
+      const score = boundaryCellComponentScore(cell, component, attractors, focus, guideCells);
+      if (!best || score < best.score) {
+        best = { record, cell, score };
+      }
+    });
+  });
+  return best;
+}
+
+function boundaryFillComponentCells(group, records, component, assignedCells, selectedCells, anchorCells, remainingByRecord, attractors, opacity) {
+  while (records.some((record) => boundaryRemainingComponentCount(record, component, remainingByRecord) > 0)) {
+    const next = boundaryFindBestComponentCell(records, component, assignedCells, selectedCells, anchorCells, remainingByRecord, attractors);
+    if (!next) break;
+    boundaryAssignComponentCell(group, next.record, next.cell, component, assignedCells, selectedCells, remainingByRecord, opacity);
+  }
+}
+
+function boundaryRenderMixedGroups(group, records, concentration, opacity, domainSamples, fixedCellsByComponent = new Map()) {
+  const attractors = boundaryComponentAttractors(domainSamples, concentration);
+  const preparedRecords = records
+    .map((record) => ({
+      ...record,
+      counts: boundaryMixedComponentCounts(record.components, record.cells.length),
+    }))
+    .filter((record) => record.cells.length && record.counts.length);
+
+  if (!preparedRecords.length) return;
+
+  const componentByKey = new Map();
+  preparedRecords.forEach((record) => {
+    record.counts.forEach(({ component, count }) => {
+      if (count <= 0 || componentByKey.has(component.key)) return;
+      componentByKey.set(component.key, component);
+    });
+  });
+
+  const totals = Array.from(componentByKey.values())
+    .map((component) => ({
+      component,
+      count: preparedRecords.reduce(
+        (sum, record) => sum + boundaryRecordComponentCount(record, component),
+        0,
+      ),
+    }))
+    .filter((item) => item.count > 0)
+    .sort((a, b) => a.count - b.count || a.component.key.localeCompare(b.component.key));
+
+  const assignedCells = new Set();
+  const remainingByRecord = new Map(
+    preparedRecords.map((record) => [
+      record,
+      new Map(record.counts.map(({ component, count }) => [component.key, count])),
+    ]),
+  );
+  const selectedByComponent = new Map();
+  const anchorByComponent = new Map();
+  totals.forEach(({ component }) => {
+    selectedByComponent.set(component.key, []);
+    anchorByComponent.set(component.key, (fixedCellsByComponent.get(component.key) || []).slice());
+  });
+
+  totals.forEach(({ component }, index) => {
+    const selectedCells = selectedByComponent.get(component.key) || [];
+    const anchorCells = anchorByComponent.get(component.key) || [];
+    const guideCells = selectedCells.length ? selectedCells : anchorCells;
+    selectedByComponent.set(component.key, selectedCells);
+    const componentRecords = preparedRecords
+      .filter((record) => boundaryRecordComponentCount(record, component) > 0)
+      .sort((a, b) => (
+        boundaryRecordComponentScore(a, component, attractors, preparedRecords, guideCells) -
+        boundaryRecordComponentScore(b, component, attractors, preparedRecords, guideCells)
+      ));
+
+    if (index < totals.length - 1) {
+      boundaryReserveConnectedPairs(
+        group,
+        componentRecords,
+        component,
+        assignedCells,
+        selectedCells,
+        anchorCells,
+        remainingByRecord,
+        attractors,
+        opacity,
+      );
+    }
+
+    boundaryFillComponentCells(
+      group,
+      componentRecords,
+      component,
+      assignedCells,
+      selectedCells,
+      anchorCells,
+      remainingByRecord,
+      attractors,
+      opacity,
+    );
+  });
+
+  preparedRecords.forEach((record) => {
+    const fallback = record.counts.slice().sort((a, b) => b.count - a.count)[0]?.component;
+    if (!fallback) return;
+    boundaryAvailableCells(record, assignedCells).forEach((cell) => {
+      assignedCells.add(cell);
+      boundaryAppendTriangle(group, cell, fallback.color, opacity, record.sample);
+    });
+  });
+}
+function renderBoundaryCells(group, concentration, index, fit, samples) {
+  const visibleSamples = boundarySamplesFor(concentration, samples);
+  const domainSamples = boundaryDomainSamplesFor(concentration, samples);
+  if (!visibleSamples.length || !domainSamples.length) return;
+
+  const visibleSampleIds = new Set(visibleSamples.map((sample) => Number(sample.sample)));
+  const mixedRecordsBySample = new Map();
+  const fixedCellsByComponent = new Map();
+  const samplePositions = domainSamples.map((sample) => ({
+    sample,
+    point: localForComposition(sample),
+  }));
+  const opacity = state.visualization === "phase" ? "0.5" : "0.55";
+  const boundaryGroup = createSvgElement("g", {
+    class: "boundary-cells",
+    "aria-hidden": "true",
+  });
+
+  boundaryTriangleCompositions(domainSamples).forEach((triangle) => {
+    const nearestSample = boundaryNearestSample(triangle, samplePositions);
+    if (!nearestSample || !visibleSampleIds.has(Number(nearestSample.sample))) return;
+
+    const centroid = boundaryTriangleCentroid(triangle);
+    const cell = {
+      centroid,
+      fit,
+      index,
+      local: triangle.map((point) => makePoint(point.M, point.L, point.BSA)),
+      point: localForComposition(centroid),
+      sample: nearestSample,
+      vertices: triangle.map((point) => `${point.M},${point.L},${point.BSA}`),
+    };
+    const components = boundaryPhaseComponentsForSample(nearestSample, concentration);
+    if (components.length > 1) {
+      const sampleKey = String(nearestSample.sample);
+      if (!mixedRecordsBySample.has(sampleKey)) {
+        mixedRecordsBySample.set(sampleKey, { sample: nearestSample, components, cells: [] });
+      }
+      mixedRecordsBySample.get(sampleKey).cells.push(cell);
+      return;
+    }
+
+    const phaseKey = normalizePhase(nearestSample.phases?.[concentration]);
+    if (state.visualization === "phase" && !["missing", "mixed", "other"].includes(phaseKey)) {
+      if (!fixedCellsByComponent.has(phaseKey)) fixedCellsByComponent.set(phaseKey, []);
+      fixedCellsByComponent.get(phaseKey).push(cell);
+    }
+
+    boundaryAppendTriangle(
+      boundaryGroup,
+      cell,
+      boundaryFillForSamples([nearestSample], concentration),
+      opacity,
+      nearestSample,
+    );
+  });
+
+  boundaryRenderMixedGroups(
+    boundaryGroup,
+    Array.from(mixedRecordsBySample.values()),
+    concentration,
+    opacity,
+    domainSamples,
+    fixedCellsByComponent,
+  );
+
+  if (boundaryGroup.childNodes.length) {
+    group.append(boundaryGroup);
+  }
+}
 function renderSamples(group, concentration, index, fit, samples) {
   samples.forEach((sample) => {
     const point = screenFor(localForComposition(sample), index, fit);
@@ -2051,9 +2655,13 @@ function renderSamples(group, concentration, index, fit, samples) {
         cy: point.y,
         r: scaledSampleCircleSize(18),
       }),
-      ...createSampleBallNodes(point, scaledSampleCircleSize(12.5), sample, concentration, phase, phaseStats, framework),
     ];
-    if (state.showSampleNumbers) {
+    if (!boundaryModeActive()) {
+      sampleNodes.push(
+        ...createSampleBallNodes(point, scaledSampleCircleSize(12.5), sample, concentration, phase, phaseStats, framework),
+      );
+    }
+    if (!boundaryModeActive() && state.showSampleNumbers) {
       const numberNode = createSvgElement("text", {
         class: "sample-number",
         x: point.x,
@@ -2204,6 +2812,10 @@ function renderLayer(concentration, index, fit, samples, options = {}) {
       points: pointsAttribute(vertices),
     }),
   );
+
+  if (options.showSamples !== false && boundaryModeActive()) {
+    renderBoundaryCells(group, concentration, index, fit, samples);
+  }
 
   renderGrid(group, index, fit);
   if (shouldRenderAxisForLayer(index)) {
@@ -3255,6 +3867,11 @@ function updateControlStates() {
       els.searchStatus.textContent = search.message;
     }
   }
+  els.plotStyleTabs.forEach((button) => {
+    const active = button.dataset.plotStyle === state.plotStyle;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
   els.modeTabs.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.dragMode === state.dragMode);
   });
@@ -3455,6 +4072,7 @@ function exportStyles() {
     .layer-plane { fill: transparent; stroke: rgba(45, 47, 41, 0.62); stroke-width: 1.25; }
     .layer-grid { stroke: rgba(124, 117, 103, 0.28); stroke-width: 0.9; }
     .layer-edge { stroke: rgba(29, 37, 40, 0.58); stroke-width: 1; }
+    .boundary-cell { stroke: rgba(84, 84, 84, 0.46); stroke-width: 0.85; }
     .layer-label { fill: #000000; font-size: ${layerLabelSize}px; font-weight: 760; }
     .search-layer-plane { fill: #ffbf2f; fill-opacity: 0.1; stroke: #c42032; stroke-dasharray: 8 6; stroke-width: 1.8; }
     .search-layer-label { fill: #c42032; }
@@ -3485,7 +4103,7 @@ function exportStyles() {
 function exportContentBottom(svgNode = els.svg) {
   let bottom = 0;
 
-  svgNode?.querySelectorAll(".layer-plane, .search-layer-plane, .plot-grid-fill").forEach((node) => {
+  svgNode?.querySelectorAll(".layer-plane, .search-layer-plane, .boundary-cell, .plot-grid-fill").forEach((node) => {
     const points = String(node.getAttribute("points") || "")
       .trim()
       .split(/\s+/)
@@ -3632,6 +4250,7 @@ function exportContentBounds(svgNode = els.svg) {
     ".sample-dot",
     ".sample-ring",
     ".layer-plane",
+    ".boundary-cell",
     ".search-layer-plane",
     ".layer-shadow",
     ".layer-grid",
@@ -5446,6 +6065,19 @@ function bindEvents() {
     updateControlStates();
     renderPlot();
     updateDetail();
+  });
+
+  els.plotStyleTabs.forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextStyle = button.dataset.plotStyle;
+      if (!plotStyleOptions.has(nextStyle) || nextStyle === state.plotStyle) return;
+      state = {
+        ...state,
+        plotStyle: nextStyle,
+      };
+      updateControlStates();
+      renderPlot();
+    });
   });
 
   els.sampleNumberToggle?.addEventListener("change", () => {

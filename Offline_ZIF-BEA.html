@@ -216,6 +216,7 @@
                 <span>Axis numbers</span>
               </label>
             </div>
+
             <div class="font-size-controls" aria-label="Font size controls">
               <label class="font-size-control">
                 <span>Concentration size</span>
@@ -337,6 +338,21 @@
               <button id="zoomIn" type="button" title="Zoom in">+</button>
               <button id="zoomOut" type="button" title="Zoom out">-</button>
             </div>
+            <div class="gizmo-style-tabs" aria-label="Ternary display style">
+              <button class="plot-style-tab plot-style-icon is-active" type="button" data-plot-style="points" title="Points" aria-label="Points view">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <circle cx="8" cy="8" r="2.6"></circle>
+                  <circle cx="16" cy="8" r="2.6"></circle>
+                  <circle cx="12" cy="16" r="2.6"></circle>
+                </svg>
+              </button>
+              <button class="plot-style-tab plot-style-icon" type="button" data-plot-style="boundary" title="Boundary" aria-label="Boundary view">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M12 4 4 18h16Z"></path>
+                  <path d="M8 11h8M10 14h4M12 4v14M8 11l4 7M16 11l-4 7"></path>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -456,6 +472,6 @@
     <script src="data/ir-data.js"></script>
     <script src="ptc-logo-data.js?v=20260531-logo"></script>
     <script src="vendor/html2canvas.min.js"></script>
-    <script src="app.js?v=20260611-search-conc-empty"></script>
+    <script src="app.js?v=20260615-plot-style-icons"></script>
   </body>
 </html>
